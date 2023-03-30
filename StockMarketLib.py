@@ -1,5 +1,9 @@
 import json
-# this is a helper library that the server and client both use
+
+VALID_TICKERS = ["TSL", "TSF", "PER", "BKF", "NLE"]
+VALID_STOCK_NAMES = ["Telsa", "TinySoft", "Pear", "BookFace", "Nile"]
+
+# this is a helper library that the broker and endpoint both use
 
 # takes in a json message and returns it in binary format ready to send
 # the format in which messages are passed is as follows

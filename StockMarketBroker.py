@@ -6,13 +6,11 @@ import json
 import select
 import random
 import http.client
-from txnLib import format_message, receive_data
+from StockMarketLib import format_message, receive_data, VALID_TICKERS
 
-VALID_TICKERS = ["Telsa", "TinySoft", "Pear", "BookFace", "Nile"]
-
-class HashTableServer:
-    def __init__(self, project_name):
-        self.project_name = project_name
+class StockMarketBroker:
+    def __init__(self, broker_Name):
+        self.broker_name = broker_Name
         # create socket
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # set 60 seconds timeout waiting for a connection, so we can update the name server
@@ -32,8 +30,10 @@ class HashTableServer:
         # use a set to keep track of all open sockets - master socket is the first socket
         self.socket_table = set([self.socket])
 
+        #!!!!!!!!!!!!!!!!!!! TODO
+        '''
         # see if we need to perform a rebuild after a crash
-        # if there is a checkpoint file or a transaction log, we will reload in the contents of the hash table before it crashed
+        # if there is a checkpoint file or a transaction log, we will reload in stock market data from those files
         # set the txn_log to none to indicate that we are rebuilding from crash
         self.txn_log = None
         self.rebuild_server()
@@ -41,6 +41,7 @@ class HashTableServer:
         # start new transaction log
         self.txn_log = open("table.txn", "w")
         self.txn_count = 0
+        '''
 
         # send information to name server
         self.ns_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -54,7 +55,7 @@ class HashTableServer:
 
     def ns_update(self):
         # create information message  
-        message = json.dumps({"type" : "hashtable", "owner" : "dsimone2", "port" : self.port_number, "project" : self.project_name})
+        message = json.dumps({"type" : "stockmarketbroker", "owner" : "dsimone2", "port" : self.port_number, "project" : self.broker_name})
         # send info to name server
         self.ns_socket.sendall(message.encode("utf-8"))
         # keep track of last name server update
@@ -183,11 +184,6 @@ class HashTableServer:
             error_msg = {"Result": "Error", "Value": "Invalid action specified"}
             return error_msg
 
-        # if we have written 100 transactions, create a checkpoint before commiting this transaction
-        if self.txn_count >= 100:
-            # compress the transaction log into the new checkpoint, and then reset the number of transactions to 0
-            self.create_checkpoint()
-            self.txn_count = 0
         return {"Result": "Success", "Value": 0}
         # case where operation occured successfully
         if return_code == 0:
@@ -233,7 +229,7 @@ def main():
         print("Error: please enter project name as the only argument")
         exit(1)
 
-    server = HashTableServer(sys.argv[1])
+    server = StockMarketBroker(sys.argv[1])
 
     while True:
         # if 1 minute has passed, perform a name server update
