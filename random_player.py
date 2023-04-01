@@ -1,4 +1,4 @@
-import sys
+import sys, time
 
 from StockMarketEndpoint import *
 
@@ -7,9 +7,10 @@ def main():
         print("Error: please only enter one argument which is the project name")
         exit(1)
 
-    ht = StockMarketEndpoint()
-    ht.connect_to_simulator(sys.argv[1])
-    print(ht.info_sock.recv(1024))
+    sm = StockMarketEndpoint(sys.argv[1])
+    for i in range(5):
+        print(sm.receive_latest_stock_update())
+        time.sleep(1)
     '''
     ht.connect_to_broker(sys.argv[1])
     print(f"{'Description of expected output':60} | status of response | response/error from server")

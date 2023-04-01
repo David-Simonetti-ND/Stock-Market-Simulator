@@ -4,7 +4,7 @@ import socket
 import json
 import select
 import sys
-from StockMarketLib import format_message, receive_data, VALID_TICKERS
+from StockMarketLib import format_message, receive_data, VALID_TICKERS, SUBSCRIBE_TIMEOUT
 
 class StockMarketSimulator:
     def __init__(self, name):
@@ -42,11 +42,11 @@ class StockMarketSimulator:
         for i in range(self.num_stocks):
             update[VALID_TICKERS[i]] = self.stock_prices[i]
         message = json.dumps(update)
-        out_of_date_subs = [sub for sub in self.socket_table if (time.time_ns() - sub[1] > ((10 ** 9) * 5)) ]
+        out_of_date_subs = [sub for sub in self.socket_table if (time.time_ns() - sub[1] > (SUBSCRIBE_TIMEOUT)) ]
         for sub in out_of_date_subs:
             self.socket_table.remove(sub)
         for sub_sock in self.socket_table:
-            print(self.send_sock.sendto(message.encode("utf-8"), sub_sock[0]))
+            self.send_sock.sendto(message.encode("utf-8"), sub_sock[0])
 
     def accept_new_connection(self):
         conn, addr = self.socket.accept()
@@ -76,6 +76,7 @@ if __name__ == "__main__":
             for sock in readable:
                 server.accept_new_connection()
 
+        start_time = time.time_ns()
         server.publish_stock_data()
+        print(f"Publishing took { (time.time_ns() - start_time) / (10 ** 9)} seconds, {len(server.socket_table)}")
         
-        time.sleep(1)

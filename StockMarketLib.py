@@ -3,6 +3,8 @@ import json
 VALID_TICKERS = ["TSL", "TSF", "PER", "BKF", "NLE"]
 VALID_STOCK_NAMES = ["Telsa", "TinySoft", "Pear", "BookFace", "Nile"]
 
+SUBSCRIBE_TIMEOUT = 5 * (10 ** 9)
+
 # this is a helper library that the broker and endpoint both use
 
 # takes in a json message and returns it in binary format ready to send

@@ -1,19 +1,19 @@
 import socket, http.client, json, time
-from StockMarketLib import format_message, receive_data
+from StockMarketLib import format_message, receive_data, SUBSCRIBE_TIMEOUT
 
 class StockMarketEndpoint:
 
-    def __init__(self):
-        pass
+    def __init__(self, name):
+        self.name = name
+        self.subscribe_to_simulator()
 
     # make connection to broker
-    def connect_to_broker(self, broker_name):
-        self.broker_name = broker_name
+    def connect_to_broker(self):
         # keep track of timeouts - exponentially increase by a factor of 2 each failed attempt
         timeout = 1
         while True:
             # lookup all brokers with the right name and type
-            possible_brokers = self.lookup_server(broker_name, "stockmarketbroker")
+            possible_brokers = self.lookup_server(self.name, "stockmarketbroker")
             # try to connect to each server
             for broker in possible_brokers:
                 try:
@@ -30,15 +30,16 @@ class StockMarketEndpoint:
             time.sleep(timeout)
             timeout *= 2
 
-    def connect_to_simulator(self, simulator_name):
+    def subscribe_to_simulator(self):
         # keep track of timeouts - exponentially increase by a factor of 2 each failed attempt
         self.info_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.info_sock.bind((socket.gethostname(), 0))
+        self.info_sock.settimeout(5)
         sock_info = self.info_sock.getsockname()
         timeout = 1
         while True:
             # lookup all brokers with the right name and type
-            possible_brokers = self.lookup_server(simulator_name, "stockmarketsim")
+            possible_brokers = self.lookup_server(self.name, "stockmarketsim")
             # try to connect to each server
             for broker in possible_brokers:
                 try:
@@ -47,6 +48,7 @@ class StockMarketEndpoint:
                     self.broker_socket.connect((broker["name"], broker["port"]))
                     self.broker_socket.sendall(format_message({"hostname": sock_info[0], "port": sock_info[1]}))
                     self.broker_socket.close()
+                    self.last_sub_time = time.time_ns()
                     # if we are successful, we can return with a complete connection
                     return
                 except Exception as e:
@@ -56,6 +58,15 @@ class StockMarketEndpoint:
             print(f"Unable to connect to any potential brokers, retrying in {timeout} seconds")
             time.sleep(timeout)
             timeout *= 2
+        
+
+    def receive_latest_stock_update(self):
+        if (time.time_ns() - self.last_sub_time) > SUBSCRIBE_TIMEOUT:
+            self.subscribe_to_simulator()
+        try:
+            return self.info_sock.recv(1024)
+        except Exception:
+            return self.receive_latest_stock_update()
     
     def lookup_server(self, broker_name, type):
         timeout = 1
