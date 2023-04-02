@@ -3,10 +3,11 @@ import time
 import socket
 import json
 import select
+import pandas as pd
 import numpy as np
 import signal
 import sys
-from StockMarketLib import format_message, receive_data, VALID_TICKERS, SUBSCRIBE_TIMEOUT, GLOBAL_SPEEDUP
+from StockMarketLib import format_message, receive_data, VALID_TICKERS, SUBSCRIBE_TIMEOUT, GLOBAL_SPEEDUP, MINUTE_SPEEDUP
 
 class StockMarketSimulator:
     """Simulates the Stock Market with the universe of stocks.
@@ -18,15 +19,23 @@ class StockMarketSimulator:
         # tickers
         self.tickers = VALID_TICKERS
         self.num_tickers = len(self.tickers)
-
-        # track stock prices
-        self.stock_prices = np.ones(self.num_tickers) * 100
-        random.seed(time.time())
         
-        # publish every 1/20 second
-        self.publish_rate = .05 * 10e9 / GLOBAL_SPEEDUP
+        # load true stock prices
+        self.stock_prices = {}
+        for t in self.tickers:
+            self.stock_prices[t] = pd.read_pickle(f'data/{t}.pd')
+        self.minute = 0
+
+        
+        # publish every 1/2 second
+        self.publish_rate = .1 * 10e9 / GLOBAL_SPEEDUP
         # actual update every 1/100th a second
         self.update_rate = .01 * 10e9 / GLOBAL_SPEEDUP
+        # minute (no )
+        self.minute_rate = MINUTE_SPEEDUP * 60 * 10e9 / GLOBAL_SPEEDUP # change this for faster volatility
+        
+        # simulate the next minute
+        self.simulate_next_minute()
             
         # Open a socket to accept new client subscriptions
         self.recv_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -82,6 +91,7 @@ class StockMarketSimulator:
                     }
         self.ns_socket.sendall(json.dumps(update_msg).encode("utf-8"))
     
+    
     def simulate(self):
         """Begin Simulation loop
         """
@@ -89,6 +99,8 @@ class StockMarketSimulator:
         self.recv_socket.listen()
         prev_update_time = time.time_ns()
         prev_sub_time = prev_update_time
+        prev_min_time = prev_update_time
+        tick = 0
         while True:
             
             # check if we have a new subscriber trying to connect
@@ -97,30 +109,46 @@ class StockMarketSimulator:
                 self.accept_new_connection()
             
             cur_time = time.time_ns()
+            
+            # update the minute to use for simulation
+            if (cur_time - prev_min_time) > self.minute_rate:
+                prev_min_time = cur_time
+                self.simulate_next_minute()
+                tick = 0
+                
             # try to update
-            #if (cur_time - prev_update_time) > self.update_rate:
-            #    prev_update_time = cur_time
-            self.simulate_one_tick()
+            if (cur_time - prev_update_time) > self.update_rate:
+                prev_update_time = cur_time
+                tick += 1
+                #self.simulate_one_tick(tick)
+
                 
             # don't publish every
             if (cur_time - prev_sub_time) > self.publish_rate:
-                self.publish_stock_data()
+                self.publish_stock_data(tick)
                 prev_sub_time = cur_time
     
-    def sinusoid_main(self):
-        
+    def simulate_next_minute(self):
+        self.next_minute = {}
+        x = np.arange(0, self.minute_rate/self.update_rate , 1)
+        for t in self.tickers:
+            min = self.stock_prices[t].iloc[self.minute]
+            # compute random motions
+            self.next_minute[t] = ((min['close'] - min['open']) / (self.minute_rate/self.update_rate)) * x + min['open'] + np.random.normal(0, np.random.uniform(.1, 1.9) * np.abs(min['high'] - min['low']) + .01, len(x))
+            
+        self.minute += 1
     
-    def simulate_one_tick(self):
-        #! Temporarily simulates 1 tick
-        self.stock_prices += np.random.normal(0, .1)
+    def simulate_one_tick(self, tick):
+        """"""
+        return 
 
-    def publish_stock_data(self):
+    def publish_stock_data(self, tick):
         """Publishes Stock Data to every subscriber
         """
         # message for each ticker
         update = {"type" : "stockmarketsimupdate", "time": time.time_ns()}
-        for i in range(self.num_tickers):
-            update[self.tickers[i]] = self.stock_prices[i]
+        for t in self.tickers:
+            update[t] = self.next_minute[t][tick]
         message = json.dumps(update)
         # remove out of date subscribers
         out_of_date_subs = [sub for sub in self.sub_table if (time.time_ns() - sub[1] > (SUBSCRIBE_TIMEOUT)) ]

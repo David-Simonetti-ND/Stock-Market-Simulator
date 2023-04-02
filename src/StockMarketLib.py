@@ -6,6 +6,8 @@ VALID_STOCK_NAMES = ["Tesla", "Microsoft", "Apple", "Nvidia", "Amazon"]
 
 ## global speedup
 GLOBAL_SPEEDUP = 1
+# how long is a minute compared to real life
+MINUTE_SPEEDUP = .1 
 
 ## Default Timeout for subscribes
 SUBSCRIBE_TIMEOUT = 5 * (10 ** 9)

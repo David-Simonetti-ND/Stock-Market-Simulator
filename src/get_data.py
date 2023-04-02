@@ -1,25 +1,23 @@
-import matplotlib.pyplot as plt
-import numpy as np
+from alpaca.data.historical import StockHistoricalDataClient
+from alpaca.data.requests import StockBarsRequest
+from alpaca.data.timeframe import TimeFrame
+from datetime import datetime
+from StockMarketLib import VALID_TICKERS
+import pandas as pd
 
-def s1(x, a, b, c):
-    return a * np.sin(b * x/np.pi) + c
+key = "PKQLQWISAMDP4032PHJR"
+secret_key = "Gs1cISjv3MOKBA1F2ioDI3adwM5TLN7AodgaiJm8"
 
+c = StockHistoricalDataClient(api_key=key, secret_key=secret_key)
 
+# retrieve data since March 1, 2023
+for ticker in VALID_TICKERS:
+    rparams = StockBarsRequest(symbol_or_symbols=ticker,
+                            timeframe=TimeFrame.Minute,
+                            start=datetime.strptime("2023-03-01", '%Y-%m-%d'))
+    bars = c.get_stock_bars(rparams).df
 
-if __name__ == '__main__':
+    bars = bars.fillna(method='ffill')
 
-    init = 100
-    x = []
-    y = []
-    for i in range(1000):
-        
-        x.append(i)
-        tmpy = s1(i, np.abs(np.random.normal(0, .1 * init)), 1, init)
-        y.append(tmpy)
-    
-    
-
-    print(y)
-    fig, ax = plt.subplots(1,1)
-    ax.plot(x, y)
-    fig.savefig('data/temp.png')
+    # clean data
+    pd.to_pickle(bars, f'data/{ticker}.pd')

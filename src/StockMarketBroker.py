@@ -26,7 +26,7 @@ class StockMarketBroker:
         self.socket.settimeout(60)
         # try to bind to port
         try:
-            self.socket.bind((socket.gethostname(), 0))
+            self.socket.bind((socket.gethostname(), 1))
         # error if port already in use
         except:
             print("Error: port in use")
