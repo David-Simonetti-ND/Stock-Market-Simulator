@@ -9,8 +9,17 @@ import http.client
 from StockMarketLib import format_message, receive_data, VALID_TICKERS
 
 class StockMarketBroker:
-    def __init__(self, broker_Name):
-        self.broker_name = broker_Name
+    def __init__(self, broker_name):
+        """Initializes the stock market broker, accepting connections from a randomly selected port.
+        
+        Also opens a UDP connection to the name server
+
+        Args:
+            broker_Name (str): name of the broker
+        """
+        
+        
+        self.broker_name = broker_name
         # create socket
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # set 60 seconds timeout waiting for a connection, so we can update the name server
@@ -49,11 +58,15 @@ class StockMarketBroker:
         self.ns_update()
 
     def accept_new_connection(self):
+        """Accepts a new connection and adds it to the socket table.
+        """
         conn, addr = self.socket.accept()
         conn.settimeout(60)
         self.socket_table.add(conn)
 
     def ns_update(self):
+        """Updates the name server with the current state
+        """
         # create information message  
         message = json.dumps({"type" : "stockmarketbroker", "owner" : "dsimone2", "port" : self.port_number, "project" : self.broker_name})
         # send info to name server
@@ -132,9 +145,16 @@ class StockMarketBroker:
                         self.hash_table.remove(key)
             # once we are done replaying all transactions, create a new checkpoint so we can delete the old transaction log
             self.create_checkpoint()
-
-    # server stub that takes in a json request read from the client, and performs the action on the hashtable library
+            
     def perform_request(self, request):
+        """Redirect requests from a client to appropriate function.
+
+        Args:
+            request (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
         # see what parameters are provided in json
         action = request.get("action", None)
         ticker = request.get("ticker", None)
