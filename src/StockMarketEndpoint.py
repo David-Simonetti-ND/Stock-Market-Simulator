@@ -31,6 +31,7 @@ class StockMarketEndpoint:
             timeout *= 2
 
     def subscribe_to_simulator(self):
+        print("LOL")
         # keep track of timeouts - exponentially increase by a factor of 2 each failed attempt
         self.info_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.info_sock.bind((socket.gethostname(), 0))
@@ -77,7 +78,8 @@ class StockMarketEndpoint:
                 self.ns_conn.request("GET", "/query.json")
                 html = self.ns_conn.getresponse().read()
                 self.ns_conn.close()
-            except Exception:
+            except Exception as e:
+                print(e)
                 print(f"Unable to lookup {broker_name} from catalog server, retrying in {timeout} seconds")
                 time.sleep(timeout)
                 timeout *= 2

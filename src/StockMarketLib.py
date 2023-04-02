@@ -1,9 +1,13 @@
 import json
 
-VALID_TICKERS = ["TSL", "TSF", "PER", "BKF", "NLE"]
-VALID_STOCK_NAMES = ["Telsa", "TinySoft", "Pear", "BookFace", "Nile"]
+## Universe of Stocks
+VALID_TICKERS = ["TSLA", "MSFT", "AAPL", "NVDA", "AMZN"]
+VALID_STOCK_NAMES = ["Tesla", "Microsoft", "Apple", "Nvidia", "Amazon"]
 
-# 5 seconds
+## global speedup
+GLOBAL_SPEEDUP = 1
+
+## Default Timeout for subscribes
 SUBSCRIBE_TIMEOUT = 5 * (10 ** 9)
 
 # this is a helper library that the broker and endpoint both use
