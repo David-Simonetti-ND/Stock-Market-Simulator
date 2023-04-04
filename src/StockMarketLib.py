@@ -1,4 +1,6 @@
 import json
+import http
+import time
 
 ## Universe of Stocks
 VALID_TICKERS = ["TSLA", "MSFT", "AAPL", "NVDA", "AMZN"]
@@ -8,6 +10,8 @@ VALID_STOCK_NAMES = ["Tesla", "Microsoft", "Apple", "Nvidia", "Amazon"]
 GLOBAL_SPEEDUP = 1
 # how long is a minute compared to real life
 MINUTE_SPEEDUP = .1 
+# how many publishes clients are delayed stock info for
+CLIENT_DELAY = 5
 
 ## Default Timeout for subscribes
 SUBSCRIBE_TIMEOUT = 5 * (10 ** 9)
@@ -89,3 +93,33 @@ def receive_data(socket):
     except Exception:
         return (2, "Json is not valid")
     return (0, request_json)
+
+def lookup_server(broker_name, server_type):
+    timeout = 1
+    while True:
+        # make http connection to name server and get json formatted info
+        try:
+            ns_conn = http.client.HTTPConnection('catalog.cse.nd.edu:9097')
+            ns_conn.request("GET", "/query.json")
+            html = ns_conn.getresponse().read()
+            ns_conn.close()
+        except Exception as e:
+            print(f"Unable to lookup {broker_name} from catalog server, retrying in {timeout} seconds")
+            time.sleep(timeout)
+            timeout *= 2
+            continue
+
+        # load into python dict
+        json_response = json.loads(html)
+        # iterate over all servers and check which ones have the correct broker name and type
+        possible_brokers = []
+        for broker in json_response:
+            if broker.get("project", None) == broker_name and broker.get("type", None) == server_type:
+                possible_brokers.append(broker)
+        # error case for no servers found - try again
+        if possible_brokers == []:        
+            print(f"Unable to lookup {broker_name} from catalog server, retrying in {timeout} seconds")
+            time.sleep(timeout)
+            timeout *= 2
+            continue
+        return possible_brokers

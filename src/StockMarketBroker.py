@@ -6,7 +6,36 @@ import json
 import select
 import random
 import http.client
-from StockMarketLib import format_message, receive_data, VALID_TICKERS
+from StockMarketLib import format_message, receive_data, lookup_server, VALID_TICKERS
+
+class StockMarketUser:
+    def __init__(self, username):
+        self.username = username
+        self.cash = 100000
+        self.stocks = {}
+        for ticker in VALID_TICKERS:
+            self.stocks[ticker] = 0
+
+    def can_purchase(self, amount, price):
+        return (self.cash - (amount * price) >= 0)
+
+    def can_sell(self, amount, ticker):
+        return (self.stocks[ticker] >= amount)
+    
+    def purchase(self, ticker, amount, price):
+        self.cash -= amount * price
+        self.stocks[ticker] += amount
+    
+    def sell(self, ticker, amount, price):
+        self.cash += amount * price
+        self.stocks[ticker] -= amount
+
+    def __str__(self):
+        user_str = f"{self.username}\n{self.cash}\n"
+        for ticker, amount in self.stocks.items():
+            user_str += f"{ticker}: {amount}\n"
+        return user_str
+
 
 class StockMarketBroker:
     def __init__(self, broker_name):
@@ -26,7 +55,7 @@ class StockMarketBroker:
         self.socket.settimeout(60)
         # try to bind to port
         try:
-            self.socket.bind((socket.gethostname(), 1))
+            self.socket.bind((socket.gethostname(), 0))
         # error if port already in use
         except:
             print("Error: port in use")
@@ -38,6 +67,8 @@ class StockMarketBroker:
         self.socket.listen()
         # use a set to keep track of all open sockets - master socket is the first socket
         self.socket_table = set([self.socket])
+        
+        self.users = {}
 
         #!!!!!!!!!!!!!!!!!!! TODO
         '''
@@ -56,6 +87,23 @@ class StockMarketBroker:
         self.ns_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.ns_socket.connect(("catalog.cse.nd.edu", 9097))
         self.ns_update()
+
+        timeout = 1
+        while True:
+            possible_simulators = lookup_server(self.broker_name, "stockmarketsim")
+            for simulator in possible_simulators:
+                try:
+                    self.stockmarketsim_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    self.stockmarketsim_sock.connect((simulator["name"], simulator["port"]))
+                    self.stockmarketsim_sock.sendall(format_message({"type": "broker"}))
+                    break
+                except Exception:
+                    self.stockmarketsim_sock = None
+            if self.stockmarketsim_sock != None:
+                break
+            print(f"Unable to connect to simulator, retrying in {timeout} seconds")
+            time.sleep(timeout)
+            timeout *= 2
 
     def accept_new_connection(self):
         """Accepts a new connection and adds it to the socket table.
@@ -171,14 +219,25 @@ class StockMarketBroker:
             if amount <= 0:
                 error_msg = {"Result": "Error", "Value": "Amount must be greater than 0"}
                 return error_msg
+            
+        username = request.get("username", None)
+        if action == "buy" or action == "sell":
+            if ticker == None or amount == None or username == None:
+                error_msg = {"Result": "Error", "Value": "Ticker, amount, and username required for buy request"}
+                return error_msg
+            if username not in self.users.keys():
+                self.users[username] = StockMarketUser(username)
+            current_user = self.users[username]
+            
 
         # switch statement to handle different request action
         if action == "buy":
-            # ticker and amount required
-            if ticker == None or amount == None:
-                error_msg = {"Result": "Error", "Value": "Ticker and amount required for buy request"}
-                return error_msg
-            print(f"Buying {amount} stocks of {ticker}")
+            if current_user.can_purchase(amount, self.latest_stock_info[ticker]):
+                current_user.purchase(ticker, amount, self.latest_stock_info[ticker])
+                print(f"{username} bought {amount} stocks of {ticker}")
+            else:
+                print(f"{username} could not afford {amount} stocks of {ticker}")
+            print(str(current_user))
             # before we perform the operation, we write to the transaction log
             #self.write_txn(f"{time.time_ns()} INSERT {len(key)} {key} {json.dumps(value)}\n")
             # preform operation
@@ -187,10 +246,7 @@ class StockMarketBroker:
             # hash_value is returned value (optional)
             #return_code, msg, hash_value = self.hash_table.insert(key, value)
         elif action == "sell":
-            if ticker == None or amount == None:
-                error_msg = {"Result": "Error", "Value": "Ticker and amount required for sell request"}
-                return error_msg
-            print(f"Selling {amount} stocks of {ticker}")
+            print(f"{username} is selling {amount} stocks of {ticker}")
             #return_code, msg, hash_value = self.hash_table.lookup(key)
         elif action == "get_price":
             if ticker == None:
@@ -257,7 +313,7 @@ def main():
             server.ns_update()
         # use select to return a list of sockets ready for reading
         # wait up to 5 seconds for an incoming connection
-        readable, _, _ = select.select(list(server.socket_table), [], [], 5)
+        readable, _, _ = select.select(list(server.socket_table) + [server.stockmarketsim_sock], [], [], 5)
         # if no sockets are readable, try again
         if readable == []:
             continue
@@ -265,6 +321,10 @@ def main():
         if server.socket in readable:
             server.accept_new_connection()
             readable.remove(server.socket)
+        if server.stockmarketsim_sock in readable:
+            status, data = receive_data(server.stockmarketsim_sock)
+            server.latest_stock_info = json.loads(data)
+            readable.remove(server.stockmarketsim_sock)
         # otherwise we have at least one client connection with data available
         # handle all pendings reads before performing select again
         while len(readable) > 0:
