@@ -76,6 +76,7 @@ class StockMarketBroker:
         # set the txn_log to none to indicate that we are rebuilding from crash
         self.txn_log = None
         self.rebuild_server()
+        print(self.users)
         # once the server is rebuilt, there is two cases
         # start new transaction log
         self.txn_log = open("table.txn", "w")
@@ -219,7 +220,7 @@ class StockMarketBroker:
             ticker_price = self.latest_stock_info[ticker]
             if username not in self.users.keys():
                 self.users[username] = StockMarketUser(username)
-                self.write_txn(f"{time.time_ns()} CREATE_USER {username}")
+                self.write_txn(f"{time.time_ns()} CREATE_USER {username}\n")
             current_user = self.users[username]
         if action == "get_info":
             if username == None:
@@ -227,7 +228,7 @@ class StockMarketBroker:
                 return error_msg
             if username not in self.users.keys():
                 self.users[username] = StockMarketUser(username)
-                self.write_txn(f"{time.time_ns()} CREATE_USER {username}")
+                self.write_txn(f"{time.time_ns()} CREATE_USER {username}\n")
             current_user = self.users[username]
 
         # switch statement to handle different request action
