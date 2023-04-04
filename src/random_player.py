@@ -9,11 +9,14 @@ def main():
 
     sm = StockMarketEndpoint(sys.argv[1], sys.argv[2])
     sm.connect_to_broker()
-    for i in range(5):
+    for i in range(100):
         print(sm.receive_latest_stock_update())
         response = sm.buy("TSLA", 10)
-        print(f"{'Buying 10 of TSL':60} |", response["Result"], "  |", response["Value"])
-        time.sleep(1)
+        print(response)
+        response = sm.get_info()
+        print(response)
+        #print(f"{'Buying 10 of TSL':60} |", response["Result"], "  |", response["Total_Price"])
+        #time.sleep(1)
     '''
     ht.connect_to_broker(sys.argv[1])
     print(f"{'Description of expected output':60} | status of response | response/error from server")

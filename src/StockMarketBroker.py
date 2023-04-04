@@ -31,9 +31,9 @@ class StockMarketUser:
         self.stocks[ticker] -= amount
 
     def __str__(self):
-        user_str = f"{self.username}\n{self.cash}\n"
+        user_str = f"{self.username} {self.cash} "
         for ticker, amount in self.stocks.items():
-            user_str += f"{ticker}: {amount}\n"
+            user_str += f"{ticker}: {amount} "
         return user_str
 
 
@@ -71,7 +71,6 @@ class StockMarketBroker:
         self.users = {}
 
         #!!!!!!!!!!!!!!!!!!! TODO
-        '''
         # see if we need to perform a rebuild after a crash
         # if there is a checkpoint file or a transaction log, we will reload in stock market data from those files
         # set the txn_log to none to indicate that we are rebuilding from crash
@@ -81,7 +80,6 @@ class StockMarketBroker:
         # start new transaction log
         self.txn_log = open("table.txn", "w")
         self.txn_count = 0
-        '''
 
         # send information to name server
         self.ns_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -124,7 +122,6 @@ class StockMarketBroker:
 
     
     def rebuild_server(self):
-        return
         # time the last checkpoint was made - used to see which transactions from the transactions log we should actually play back
         ckpt_time = 0
         # only rebuild from checkpoint if the file exists
@@ -134,36 +131,24 @@ class StockMarketBroker:
             ckpt_time = int(f.readline())
             # read in state of hash table line by line
             for line in f.readlines():
-                # format of checkpoint entry
-                # KEY_LENTH KEY VALUE
-                # where KEY_LENGTH is the length of KEY
-                # each element is delimited by a space
 
-                # the length of the key is seperated from the rest of the entry by the first space in the line
-                key_len, rest = line.strip("\n").split(" ", 1)
+                # the length of the username_len
+                username_len, rest = line.strip("\n").split(" ", 1)
                 # convert to int
-                key_len = int(key_len)
+                username_len = int(username_len)
                 # read in the key as that many characters
-                key = rest[:key_len]
+                username = rest[:username_len]
                 # the value is then the rest of the entry
-                value = json.loads(rest[key_len:])
+                cash, _, tsla_stock, _, msft_stock, _, aapl_stock, _, nvda_stock, _, amzn_stock = rest[username_len:].strip(" ").split(" ")
                 # add the entry to memory
-                self.hash_table.insert(key, value)
+                self.users[username] = StockMarketUser(username)
+                self.users[username].cash = float(cash)
+                self.users[username].stocks = {"TSLA": float(tsla_stock), "MSFT": float(msft_stock), "AAPL": float(aapl_stock), "NVDA": float(nvda_stock), "AMZN": float(amzn_stock)}
         # once we have rebuild from the checkpoint, attempt to play back the transaction log if it exists
         if os.path.isfile("table.txn"):
             f = open("table.txn", "r")
             # go line by line through the log
             for line in f.readlines():
-                # format of each entry in the log is as such
-                # TRANSACTION_LENGTH TIMESTAMP METHOD KEY_LENGTH KEY [VALUE]
-                # where value is optional depending on the method
-                # transaction_length is the total size of the transaction, to ensure no partial transactions get read
-                # timestamp is the time in ns when the operation happened
-                # method is which hash table method was invoked (either INSERT or REMOVE)
-                # KEY_LENGTH is the length of KEY
-                # each item is delimited by a space
-
-                # read total transaction length and make sure it lines up
                 total_length, rest = line.strip("\n").split(" ", 1)
                 if len(rest) != int(total_length):
                     # otherwise, if we encounter a half completed transaction we just skip it
@@ -176,21 +161,27 @@ class StockMarketBroker:
                     # read the operation from the entry - delimited by second space
                     operation, rest = rest.split(" ", 1)
                     # if its an insert
-                    if operation == "INSERT":
+                    if operation == "BUY":
                         # get the key length, which is delimited by the third space
-                        key_len, rest = rest.split(" ", 1)
-                        key_len = int(key_len)
+                        username_len, rest = rest.split(" ", 1)
+                        username_len = int(username_len)
                         # get the key and then the value is the rest of the entry
-                        key = rest[:key_len]
-                        value = json.loads(rest[key_len:])
+                        username = rest[:username_len]
+                        amount, ticker, price = rest[username_len:].strip(" ").split(" ")
                         # perform operation
-                        self.hash_table.insert(key, value)
-                    elif operation == "REMOVE":
-                        # if its a remove operation, we only have key length and key
-                        key_len, rest = rest.split(" ", 1)
-                        key_len = int(key_len)
-                        key = rest[:key_len]
-                        self.hash_table.remove(key)
+                        self.users[username].purchase(ticker, float(amount), float(price))
+                    elif operation == "SELL":
+                        # get the key length, which is delimited by the third space
+                        username_len, rest = rest.split(" ", 1)
+                        username_len = int(username_len)
+                        # get the key and then the value is the rest of the entry
+                        username = rest[:username_len]
+                        amount, ticker, price = rest[username_len:].strip(" ").split(" ")
+                        # perform operation
+                        self.users[username].sell(ticker, float(amount), float(price))
+                    elif operation == "CREATE_USER":
+                        username = rest.strip(" ")
+                        self.users[username] = StockMarketUser(username)
             # once we are done replaying all transactions, create a new checkpoint so we can delete the old transaction log
             self.create_checkpoint()
             
@@ -206,7 +197,7 @@ class StockMarketBroker:
         # see what parameters are provided in json
         action = request.get("action", None)
         ticker = request.get("ticker", None)
-        if ticker not in VALID_TICKERS:
+        if (ticker != None) and (ticker not in VALID_TICKERS):
             error_msg = {"Result": "Error", "Value": f"Ticker {ticker} is not valid"}
             return error_msg
         amount = request.get("amount", None)
@@ -225,50 +216,53 @@ class StockMarketBroker:
             if ticker == None or amount == None or username == None:
                 error_msg = {"Result": "Error", "Value": "Ticker, amount, and username required for buy request"}
                 return error_msg
+            ticker_price = self.latest_stock_info[ticker]
             if username not in self.users.keys():
                 self.users[username] = StockMarketUser(username)
+                self.write_txn(f"{time.time_ns()} CREATE_USER {username}")
             current_user = self.users[username]
-            
+        if action == "get_info":
+            if username == None:
+                error_msg = {"Result": "Error", "Value": "Username required for get_info request"}
+                return error_msg
+            if username not in self.users.keys():
+                self.users[username] = StockMarketUser(username)
+                self.write_txn(f"{time.time_ns()} CREATE_USER {username}")
+            current_user = self.users[username]
 
         # switch statement to handle different request action
         if action == "buy":
-            if current_user.can_purchase(amount, self.latest_stock_info[ticker]):
-                current_user.purchase(ticker, amount, self.latest_stock_info[ticker])
-                print(f"{username} bought {amount} stocks of {ticker}")
+            if current_user.can_purchase(amount, ticker_price):
+                current_user.purchase(ticker, amount, ticker_price)
+                self.write_txn(f"{time.time_ns()} BUY {len(username)} {username} {amount} {ticker} {ticker_price}\n")
+                print(f"{username} bought {amount} stocks of {ticker} for {amount * ticker_price}")
+                return {"Result": "Success", "Total_Price": amount * ticker_price}
             else:
                 print(f"{username} could not afford {amount} stocks of {ticker}")
-            print(str(current_user))
-            # before we perform the operation, we write to the transaction log
-            #self.write_txn(f"{time.time_ns()} INSERT {len(key)} {key} {json.dumps(value)}\n")
-            # preform operation
-            # return code is 0 for success, 1 for failure
-            # message indicates what failure it was 
-            # hash_value is returned value (optional)
-            #return_code, msg, hash_value = self.hash_table.insert(key, value)
+                return {"Result": "Error", "Reason": "Not enough cash"}
         elif action == "sell":
-            print(f"{username} is selling {amount} stocks of {ticker}")
-            #return_code, msg, hash_value = self.hash_table.lookup(key)
+            if current_user.can_sell(amount, ticker):
+                current_user.sell(ticker, amount, ticker_price)
+                self.write_txn(f"{time.time_ns()} SELL {len(username)} {username} {amount} {ticker} {ticker_price}\n")
+                print(f"{username} sold {amount} stocks of {ticker} for {amount * ticker_price}")
+                return {"Result": "Success", "Total_Price": amount * ticker_price}
+            else:
+                print(f"{username} could not sell {amount} stocks of {ticker}")
+                return {"Result": "Error", "Reason": "Not enough stocks"}
         elif action == "get_price":
             if ticker == None:
                 error_msg = {"Result": "Error", "Value": "Ticker required for get_price request"}
                 return error_msg
-            # before we perform the operation, we write to the transaction log
-            # self.write_txn(f"{time.time_ns()} REMOVE {len(key)} {key}\n")
-            # return_code, msg, hash_value = self.hash_table.remove(key)
+            return {"Result": "Success", "Price": self.latest_stock_info[ticker]}
+        elif action == "get_info":
+            if username == None:
+                error_msg = {"Result": "Error", "Value": "Username required for get_info request"}
+                return error_msg
+            return {"Result": "Success", "Info": str(self.users[username])}
         else:
             # handle case for invalid action specified
             error_msg = {"Result": "Error", "Value": "Invalid action specified"}
             return error_msg
-
-        return {"Result": "Success", "Value": 0}
-        # case where operation occured successfully
-        if return_code == 0:
-            ret_msg = {"Result": "Success", "Value": hash_value}
-            return ret_msg
-        # case where operation failed
-        else:
-            ret_msg = {"Result": "Error", "Value": msg}
-            return ret_msg
 
     # takes in the transaction message and writes it to the log
     def write_txn(self, message):
@@ -287,9 +281,9 @@ class StockMarketBroker:
         # write the current time as a header 
         shadow_ckpt.write(f"{time.time_ns()}\n")
         # iterate over every key value pair currently in the hash table and write it to the checkpoint file
-        for key, value in self.hash_table.get_hash_table_contents():
+        for username in self.users.keys():
             # KEY_LENGTH KEY VALUE
-            shadow_ckpt.write(f"{len(key)} {key} {json.dumps(value)}\n")
+            shadow_ckpt.write(f"{len(username)} {str(self.users[username])}\n")
 
         shadow_ckpt.close()
         # perform atomic update of checkpoint
@@ -331,6 +325,8 @@ def main():
             # check if we should perform a name server update
             if (time.time_ns() - server.last_ns_update) >= (60*1000000000):
                 server.ns_update()
+            if server.txn_count >= 100:
+                server.create_checkpoint()
             # randomly pick a client to service
             conn = random.choice(readable)
             readable.remove(conn)
@@ -359,6 +355,7 @@ def main():
                 conn.sendall(format_message(RPC_response))
             except Exception:
                 continue
+            
 
 
 if __name__ == "__main__":

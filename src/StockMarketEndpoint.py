@@ -62,7 +62,7 @@ class StockMarketEndpoint:
         
 
     def receive_latest_stock_update(self):
-        if (time.time_ns() - self.last_sub_time) > SUBSCRIBE_TIMEOUT:
+        if (time.time_ns() - self.last_sub_time) > (SUBSCRIBE_TIMEOUT * 4/5):
             self.subscribe_to_simulator()
         try:
             return self.info_sock.recv(1024)
@@ -77,6 +77,7 @@ class StockMarketEndpoint:
             print(f"Error: Unable to convert request {request} to json")
             return None
         while True:
+            print("sending")
             # try to send request
             try:
                 self.broker_socket.sendall(encoded_request)
@@ -86,7 +87,7 @@ class StockMarketEndpoint:
                 time.sleep(timeout)
                 timeout *= 2
                 self.close_connection()
-                self.connect_to_broker(timeout)
+                self.connect_to_broker()
                 continue
             # wait up to 5 seconds for a response
             self.broker_socket.settimeout(5)
@@ -97,7 +98,7 @@ class StockMarketEndpoint:
                 time.sleep(timeout)
                 timeout *= 2
                 self.close_connection()
-                self.connect_to_broker(self.broker_name)
+                self.connect_to_broker()
             else:
                 return response
 
@@ -114,5 +115,9 @@ class StockMarketEndpoint:
 
     def get_price(self, ticker):
         request = {"action": "get_price", "ticker": ticker, "username": self.username}
+        return self.send_request_to_broker(request)
+
+    def get_info(self):
+        request = {"action": "get_info",  "username": self.username}
         return self.send_request_to_broker(request)
 
