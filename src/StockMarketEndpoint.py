@@ -1,10 +1,11 @@
 import socket, http.client, json, time
-from StockMarketLib import format_message, receive_data, SUBSCRIBE_TIMEOUT
+from StockMarketLib import format_message, receive_data, lookup_server, SUBSCRIBE_TIMEOUT
 
 class StockMarketEndpoint:
 
-    def __init__(self, name):
+    def __init__(self, name, username):
         self.name = name
+        self.username = username
         self.subscribe_to_simulator()
 
     # make connection to broker
@@ -13,7 +14,7 @@ class StockMarketEndpoint:
         timeout = 1
         while True:
             # lookup all brokers with the right name and type
-            possible_brokers = self.lookup_server(self.name, "stockmarketbroker")
+            possible_brokers = lookup_server(self.name, "stockmarketbroker")
             # try to connect to each server
             for broker in possible_brokers:
                 try:
@@ -31,7 +32,6 @@ class StockMarketEndpoint:
             timeout *= 2
 
     def subscribe_to_simulator(self):
-        print("LOL")
         # keep track of timeouts - exponentially increase by a factor of 2 each failed attempt
         self.info_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.info_sock.bind((socket.gethostname(), 0))
@@ -40,7 +40,7 @@ class StockMarketEndpoint:
         timeout = 1
         while True:
             # lookup all brokers with the right name and type
-            possible_brokers = self.lookup_server(self.name, "stockmarketsim")
+            possible_brokers = lookup_server(self.name, "stockmarketsim")
             # try to connect to each server
             for broker in possible_brokers:
                 try:
@@ -68,37 +68,6 @@ class StockMarketEndpoint:
             return self.info_sock.recv(1024)
         except Exception:
             return self.receive_latest_stock_update()
-    
-    def lookup_server(self, broker_name, type):
-        timeout = 1
-        while True:
-            # make http connection to name server and get json formatted info
-            try:
-                self.ns_conn = http.client.HTTPConnection('catalog.cse.nd.edu:9097')
-                self.ns_conn.request("GET", "/query.json")
-                html = self.ns_conn.getresponse().read()
-                self.ns_conn.close()
-            except Exception as e:
-                print(e)
-                print(f"Unable to lookup {broker_name} from catalog server, retrying in {timeout} seconds")
-                time.sleep(timeout)
-                timeout *= 2
-                continue
-
-            # load into python dict
-            json_response = json.loads(html)
-            # iterate over all servers and check which ones have the correct broker name and type
-            possible_brokers = []
-            for broker in json_response:
-                if broker.get("project", None) == broker_name and broker.get("type", None) == type:
-                    possible_brokers.append(broker)
-            # error case for no servers found - try again
-            if possible_brokers == []:        
-                print(f"Unable to lookup {broker_name} from catalog server, retrying in {timeout} seconds")
-                time.sleep(timeout)
-                timeout *= 2
-                continue
-            return possible_brokers
 
     # takes in a request, formats it to protocol, sends it off, and tries to read a response
     def send_request_to_broker(self, request):
@@ -136,14 +105,14 @@ class StockMarketEndpoint:
         self.broker_socket.close()
 
     def buy(self, ticker, amount):
-        request = {"action": "buy", "ticker": ticker, "amount": amount}
+        request = {"action": "buy", "ticker": ticker, "amount": amount, "username": self.username}
         return self.send_request_to_broker(request)
 
     def sell(self, ticker, amount):
-        request = {"action": "sell", "ticker": ticker, "amount": amount}
+        request = {"action": "sell", "ticker": ticker, "amount": amount, "username": self.username}
         return self.send_request_to_broker(request)
 
     def get_price(self, ticker):
-        request = {"action": "get_price", "ticker": ticker}
+        request = {"action": "get_price", "ticker": ticker, "username": self.username}
         return self.send_request_to_broker(request)
 

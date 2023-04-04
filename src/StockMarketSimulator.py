@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 import signal
 import sys
-from StockMarketLib import format_message, receive_data, VALID_TICKERS, SUBSCRIBE_TIMEOUT, GLOBAL_SPEEDUP, MINUTE_SPEEDUP
+from StockMarketLib import format_message, receive_data, VALID_TICKERS, SUBSCRIBE_TIMEOUT, GLOBAL_SPEEDUP, MINUTE_SPEEDUP, CLIENT_DELAY
 
 class StockMarketSimulator:
     """Simulates the Stock Market with the universe of stocks.
@@ -33,6 +33,8 @@ class StockMarketSimulator:
         self.update_rate = .01 * 10e9 / GLOBAL_SPEEDUP
         # minute (no )
         self.minute_rate = MINUTE_SPEEDUP * 60 * 10e9 / GLOBAL_SPEEDUP # change this for faster volatility
+
+        self.delayed_data = []
         
         # simulate the next minute
         self.simulate_next_minute()
@@ -59,8 +61,11 @@ class StockMarketSimulator:
         """
         conn, addr = self.recv_socket.accept()
         error_code, data = receive_data(conn)
-        conn.close()
-        self.sub_table.add(((data["hostname"], data["port"]), time.time_ns()))
+        if data.get("type", None) == "broker":
+            self.broker_connection = conn
+        else:
+            self.sub_table.add(((data["hostname"], data["port"]), time.time_ns()))
+            conn.close()
     
     def _init_pub_socket(self):
         """Initializes publish socket
@@ -84,7 +89,7 @@ class StockMarketSimulator:
         """Update Name server handler"""
         # update msg
         update_msg = {
-                    "type" : "stockmartketsim",
+                    "type" : "stockmarketsim",
                     "owner" : "dsimone2",
                     "port" : self.port,
                     "project" : self.name
@@ -149,7 +154,19 @@ class StockMarketSimulator:
         update = {"type" : "stockmarketsimupdate", "time": time.time_ns()}
         for t in self.tickers:
             update[t] = self.next_minute[t][tick]
+
         message = json.dumps(update)
+        try:
+            self.broker_connection.sendall(format_message(message))
+        except Exception as e:
+            pass
+
+        self.delayed_data.append(message)
+        if len(self.delayed_data) <= CLIENT_DELAY:
+            return
+        message = self.delayed_data.pop(0)
+
+        
         # remove out of date subscribers
         out_of_date_subs = [sub for sub in self.sub_table if (time.time_ns() - sub[1] > (SUBSCRIBE_TIMEOUT)) ]
         for sub in out_of_date_subs:

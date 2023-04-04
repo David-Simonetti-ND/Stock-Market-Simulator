@@ -3,13 +3,16 @@ import sys, time
 from StockMarketEndpoint import *
 
 def main():
-    if len(sys.argv) != 2:
-        print("Error: please only enter one argument which is the project name")
+    if len(sys.argv) != 3:
+        print("Error: please only enter two arguments which is the project name and your username")
         exit(1)
 
-    sm = StockMarketEndpoint(sys.argv[1])
+    sm = StockMarketEndpoint(sys.argv[1], sys.argv[2])
+    sm.connect_to_broker()
     for i in range(5):
         print(sm.receive_latest_stock_update())
+        response = sm.buy("TSLA", 10)
+        print(f"{'Buying 10 of TSL':60} |", response["Result"], "  |", response["Value"])
         time.sleep(1)
     '''
     ht.connect_to_broker(sys.argv[1])
