@@ -13,8 +13,9 @@ def main():
         print(sm.receive_latest_stock_update())
         response = sm.buy("TSLA", 10)
         print(f"{'Buying 10 of TSLA':60} |", response["Result"], "  |", response["Value"])
-        print(sm.get_price("TSLA"))
+        
         time.sleep(1)
+    print(sm.get_leaderboard())
     '''
     ht.connect_to_broker(sys.argv[1])
     print(f"{'Description of expected output':60} | status of response | response/error from server")

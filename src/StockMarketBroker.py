@@ -6,6 +6,7 @@ import json
 import select
 import random
 import http.client
+import signal
 from StockMarketLib import format_message, receive_data, lookup_server, VALID_TICKERS
 
 class StockMarketUser:
@@ -69,6 +70,7 @@ class StockMarketBroker:
         self.socket_table = set([self.socket])
         
         self.users = {}
+        self.leaderboard = []
 
         #!!!!!!!!!!!!!!!!!!! TODO
         '''
@@ -104,7 +106,30 @@ class StockMarketBroker:
             print(f"Unable to connect to simulator, retrying in {timeout} seconds")
             time.sleep(timeout)
             timeout *= 2
-
+        
+        #update the signal
+        signal.signal(signal.SIGALRM, self._update_leaderboard)
+        signal.setitimer(signal.ITIMER_REAL,60, 60) # now and every 60 seconds after
+            
+    def _update_leaderboard(self, _, __):
+        # snapshot of each ticker's price
+        prices = {}
+        for t in VALID_TICKERS:
+            prices[t] = self.latest_stock_info[t]
+            
+        def net_worth(user):
+            nw = user.cash
+            for t in VALID_TICKERS:
+                nw += user.stocks[t] * prices[t]
+            return nw
+        users = list(self.users.values())
+        nw = [net_worth(u) for u in users]
+        
+        self.leaderboard = sorted(list(zip(users, nw)), key = lambda x: x[1], reverse=True)
+        print(self.leaderboard)
+        print("Leaderboard Updated.")
+        
+    
     def accept_new_connection(self):
         """Accepts a new connection and adds it to the socket table.
         """
@@ -255,6 +280,17 @@ class StockMarketBroker:
             # before we perform the operation, we write to the transaction log
             # self.write_txn(f"{time.time_ns()} REMOVE {len(key)} {key}\n")
             # return_code, msg, hash_value = self.hash_table.remove(key)
+        elif action == 'balance':
+            pass
+        elif action == 'leaderboard':
+            # Top 10
+            print("TOP 10")
+            print("---------------")
+            try:
+                for i in range(10):
+                    print(self.leaderboard[i][0].username, '|', round(self.leaderboard[i][1], 2))
+            except:
+                pass
         else:
             # handle case for invalid action specified
             error_msg = {"Result": "Error", "Value": "Invalid action specified"}
