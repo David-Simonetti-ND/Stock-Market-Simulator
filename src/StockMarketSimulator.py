@@ -3,9 +3,9 @@ import time
 import socket
 import json
 import select
-import pandas as pd
 import numpy as np
 import signal
+import csv
 import sys
 from StockMarketLib import format_message, receive_data, VALID_TICKERS, SUBSCRIBE_TIMEOUT, GLOBAL_SPEEDUP, MINUTE_SPEEDUP, CLIENT_DELAY
 
@@ -23,8 +23,10 @@ class StockMarketSimulator:
         # load true stock prices
         self.stock_prices = {}
         for t in self.tickers:
-            self.stock_prices[t] = pd.read_pickle(f'data/{t}.pd')
-        self.minute = 0
+            with open(f'data/{t}.csv') as csvfile:
+                reader = csv.reader(csvfile)
+                self.stock_prices[t] = list(reader)
+        self.minute = 1
 
         
         # publish every 1/2 second
@@ -137,9 +139,9 @@ class StockMarketSimulator:
         self.next_minute = {}
         x = np.arange(0, self.minute_rate/self.update_rate , 1)
         for t in self.tickers:
-            min = self.stock_prices[t].iloc[self.minute]
+            min = self.stock_prices[t][self.minute]
             # compute random motions
-            self.next_minute[t] = ((min['close'] - min['open']) / (self.minute_rate/self.update_rate)) * x + min['open'] + np.random.normal(0, np.random.uniform(.1, 1.9) * np.abs(min['high'] - min['low']) + .01, len(x))
+            self.next_minute[t] = (((float(min[5]) - float(min[2])) / (self.minute_rate/self.update_rate)) * x + float(min[2]) + np.random.normal(0, np.random.uniform(.1, 1.9) * np.abs(float(min[3]) - float(min[4])) + .01, len(x))).round(2)
             
         self.minute += 1
     

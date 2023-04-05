@@ -12,7 +12,8 @@ def main():
     for i in range(5):
         print(sm.receive_latest_stock_update())
         response = sm.buy("TSLA", 10)
-        print(f"{'Buying 10 of TSL':60} |", response["Result"], "  |", response["Value"])
+        print(f"{'Buying 10 of TSLA':60} |", response["Result"], "  |", response["Value"])
+        print(sm.get_price("TSLA"))
         time.sleep(1)
     '''
     ht.connect_to_broker(sys.argv[1])

@@ -112,7 +112,7 @@ class StockMarketEndpoint:
         request = {"action": "sell", "ticker": ticker, "amount": amount, "username": self.username}
         return self.send_request_to_broker(request)
 
-    def get_price(self, ticker):
-        request = {"action": "get_price", "ticker": ticker, "username": self.username}
-        return self.send_request_to_broker(request)
+    # def get_price(self, ticker):
+    #     request = {"action": "get_price", "ticker": ticker, "username": self.username}
+    #     return self.send_request_to_broker(request)
 
