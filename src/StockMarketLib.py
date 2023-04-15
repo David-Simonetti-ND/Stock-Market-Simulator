@@ -14,7 +14,7 @@ MINUTE_SPEEDUP = .1
 CLIENT_DELAY = 5
 
 ## Default Timeout for subscribes
-SUBSCRIBE_TIMEOUT = 5 * (10 ** 9)
+SUBSCRIBE_TIMEOUT = 30 * (10 ** 9)
 
 # this is a helper library that the broker and endpoint both use
 

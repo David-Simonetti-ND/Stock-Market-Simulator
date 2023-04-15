@@ -1,4 +1,5 @@
 import random
+from collections import deque
 import time
 import socket
 import json
@@ -36,7 +37,8 @@ class StockMarketSimulator:
         # minute (no )
         self.minute_rate = MINUTE_SPEEDUP * 60 * 10e9 / GLOBAL_SPEEDUP # change this for faster volatility
 
-        self.delayed_data = []
+        # save data to artificiually delay it.
+        self.delayed_data = deque()
         
         # simulate the next minute
         self.simulate_next_minute()
@@ -136,21 +138,25 @@ class StockMarketSimulator:
                 prev_sub_time = cur_time
     
     def simulate_next_minute(self):
+        '''Simulates the next minute's data by using a random walk over a minute bar'''
         self.next_minute = {}
         x = np.arange(0, self.minute_rate/self.update_rate , 1)
         for t in self.tickers:
             min = self.stock_prices[t][self.minute]
             # compute random motions
             self.next_minute[t] = (((float(min[5]) - float(min[2])) / (self.minute_rate/self.update_rate)) * x + float(min[2]) + np.random.normal(0, np.random.uniform(.1, 1.9) * np.abs(float(min[3]) - float(min[4])) + .01, len(x))).round(2)
-            
         self.minute += 1
-    
-    def simulate_one_tick(self, tick):
-        """"""
-        return 
 
     def publish_stock_data(self, tick):
         """Publishes Stock Data to every subscriber
+        
+        msg = { "type" : "stockmarketsimupdate",
+                "time": time.time_ns(),
+                "TSLA": ...,
+                "MSFT": ...,
+                "NVDA": ...,
+                "AAPL": ...,
+                "AMZN": ...,}
         """
         # message for each ticker
         update = {"type" : "stockmarketsimupdate", "time": time.time_ns()}
@@ -163,10 +169,12 @@ class StockMarketSimulator:
         except Exception as e:
             pass
 
+        # append the current message to the data queue
         self.delayed_data.append(message)
         if len(self.delayed_data) <= CLIENT_DELAY:
             return
-        message = self.delayed_data.pop(0)
+        # retrieve the delayed data in the queue. This message will be sent to users
+        message = self.delayed_data.popleft()
 
         
         # remove out of date subscribers
@@ -177,10 +185,7 @@ class StockMarketSimulator:
         # send data to subscribed sockets
         print(f"Publishing to {len(self.sub_table)} clients...", update)
         for sub_sock in self.sub_table:
-            #! can add randomized delay here
             self.pub_socket.sendto(message.encode("utf-8"), sub_sock[0])
-
-    
 
     
 if __name__ == "__main__":

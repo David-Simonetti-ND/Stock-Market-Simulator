@@ -3,9 +3,10 @@ from StockMarketLib import format_message, receive_data, lookup_server, SUBSCRIB
 
 class StockMarketEndpoint:
 
-    def __init__(self, name, username):
+    def __init__(self, name, username, password):
         self.name = name
         self.username = username
+        self.password = password
         self.subscribe_to_simulator()
 
     # make connection to broker
@@ -18,13 +19,16 @@ class StockMarketEndpoint:
             # try to connect to each server
             for broker in possible_brokers:
                 try:
+                    print(f"Trying to connect to {broker}")
                     # create new socket and attempt connection
                     self.broker_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     self.broker_socket.connect((broker["name"], broker["port"]))
+                    print("DEBUG: Connected to Broker.")
                     # if we are successful, we can return with a complete connection
                     return
                 except Exception as e:
                     # unable to connect, try another
+                    print(e)
                     pass
             # print error, wait a little, and try again
             print(f"Unable to connect to any potential brokers, retrying in {timeout} seconds")
@@ -40,16 +44,17 @@ class StockMarketEndpoint:
         timeout = 1
         while True:
             # lookup all brokers with the right name and type
-            possible_brokers = lookup_server(self.name, "stockmarketsim")
+            possible_sims = lookup_server(self.name, "stockmarketsim")
             # try to connect to each server
-            for broker in possible_brokers:
+            for sim in possible_sims:
                 try:
                     # create new socket and attempt connection
-                    self.broker_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    self.broker_socket.connect((broker["name"], broker["port"]))
-                    self.broker_socket.sendall(format_message({"hostname": sock_info[0], "port": sock_info[1]}))
-                    self.broker_socket.close()
+                    self.sim_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    self.sim_socket.connect((sim["name"], sim["port"]))
+                    self.sim_socket.sendall(format_message({"hostname": sock_info[0], "port": sock_info[1]}))
+                    self.sim_socket.close()
                     self.last_sub_time = time.time_ns()
+                    print("DEBUG: Resubscribed to StockMarketSim.")
                     # if we are successful, we can return with a complete connection
                     return
                 except Exception as e:
@@ -62,6 +67,7 @@ class StockMarketEndpoint:
         
 
     def receive_latest_stock_update(self):
+        """Recieve the last stock update and recursively retry if an error arises"""
         if (time.time_ns() - self.last_sub_time) > SUBSCRIBE_TIMEOUT:
             self.subscribe_to_simulator()
         try:
@@ -104,6 +110,10 @@ class StockMarketEndpoint:
     def close_connection(self):
         self.broker_socket.close()
 
+    def register(self):
+        request = {"action": "register", "username": self.username, "password": self.password}
+        return self.send_request_to_broker(request)
+
     def buy(self, ticker, amount):
         request = {"action": "buy", "ticker": ticker, "amount": amount, "username": self.username}
         return self.send_request_to_broker(request)
@@ -113,8 +123,10 @@ class StockMarketEndpoint:
         return self.send_request_to_broker(request)
     
     def get_leaderboard(self):
-        request = {"action": "leaderboard", "ticker": "TSLA"}
+        request = {"action": "leaderboard", "ticker": None}
         return self.send_request_to_broker(request)
+    
+    
 
     # def get_price(self, ticker):
     #     request = {"action": "get_price", "ticker": ticker, "username": self.username}

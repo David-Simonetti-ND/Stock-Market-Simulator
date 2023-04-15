@@ -7,14 +7,26 @@ def main():
         print("Error: please only enter two arguments which is the project name and your username")
         exit(1)
 
-    sm = StockMarketEndpoint(sys.argv[1], sys.argv[2])
+    sm = StockMarketEndpoint(sys.argv[1], sys.argv[2], "password")
+    print("Connecting...")
     sm.connect_to_broker()
+    print("Connected")
+    
+    # Authenticate self
+    resp = sm.register()
+    # just skip b/c it means this person already connected
+    if resp['Success'] == False:
+        pass
+    
+    
     for i in range(5):
         print(sm.receive_latest_stock_update())
         response = sm.buy("TSLA", 10)
-        print(f"{'Buying 10 of TSLA':60} |", response["Result"], "  |", response["Value"])
-        
+        print(response['Value'])
         time.sleep(1)
+        response = sm.sell("TSLA", 10)
+        print(response['Value'])
+        
     print(sm.get_leaderboard())
     '''
     ht.connect_to_broker(sys.argv[1])

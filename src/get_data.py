@@ -1,3 +1,11 @@
+# File: get_data.py
+# File Created: Sunday, 2nd April 2023 3:53:24 am
+# Author: John Lee (jlee88@nd.edu)
+# Last Modified: Wednesday, 12th April 2023 4:39:04 am
+# Modified By: John Lee (jlee88@nd.edu>)
+# 
+# Description: Script to retrieve Historical data, not relevant to distributed system.
+
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
