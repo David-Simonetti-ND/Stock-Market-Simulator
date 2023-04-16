@@ -90,8 +90,6 @@ class StockMarketBroker:
         self.users = {}
         self.leaderboard = []
 
-        #!!!!!!!!!!!!!!!!!!! TODO
-        '''
         # see if we need to perform a rebuild after a crash
         # if there is a checkpoint file or a transaction log, we will reload in stock market data from those files
         # set the txn_log to none to indicate that we are rebuilding from crash
@@ -101,7 +99,6 @@ class StockMarketBroker:
         # start new transaction log
         self.txn_log = open("table.txn", "w")
         self.txn_count = 0
-        '''
 
         # send information to name server
         self.ns_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -169,7 +166,6 @@ class StockMarketBroker:
 
     
     def rebuild_server(self):
-        return
         # time the last checkpoint was made - used to see which transactions from the transactions log we should actually play back
         ckpt_time = 0
         # only rebuild from checkpoint if the file exists
@@ -179,33 +175,40 @@ class StockMarketBroker:
             ckpt_time = int(f.readline())
             # read in state of hash table line by line
             for line in f.readlines():
-                # format of checkpoint entry
-                # KEY_LENTH KEY VALUE
-                # where KEY_LENGTH is the length of KEY
-                # each element is delimited by a space
-
-                # the length of the key is seperated from the rest of the entry by the first space in the line
-                key_len, rest = line.strip("\n").split(" ", 1)
+                # the length of the username is seperated from the rest of the entry by the first space in the line
+                username_len, rest = line.strip("\n").split(" ", 1)
                 # convert to int
-                key_len = int(key_len)
+                username_len = int(username_len)
                 # read in the key as that many characters
-                key = rest[:key_len]
-                # the value is then the rest of the entry
-                value = json.loads(rest[key_len:])
+                username = rest[:username_len]
+
+                # same for pw
+                pw_len, rest = rest[username_len + 1:].split(" ", 1)
+                # convert to int
+                pw_len = int(pw_len)
+                # read in the key as that many characters
+                password = rest[:pw_len]
+
+                # cash and stock amounts are the rest of the entry
+                cash, stocks = rest[pw_len + 1:].split(" ", 1)
+                cash = float(cash)
+                stocks = json.loads(stocks)
                 # add the entry to memory
-                self.hash_table.insert(key, value)
+                self.users[username] = StockMarketUser(username, password)
+                self.users[username].cash = cash
+                self.users[username].stocks = stocks
         # once we have rebuild from the checkpoint, attempt to play back the transaction log if it exists
         if os.path.isfile("table.txn"):
             f = open("table.txn", "r")
             # go line by line through the log
             for line in f.readlines():
                 # format of each entry in the log is as such
-                # TRANSACTION_LENGTH TIMESTAMP METHOD KEY_LENGTH KEY [VALUE]
-                # where value is optional depending on the method
+                # TRANSACTION_LENGTH TIMESTAMP OPERATION USERNAME_LEN USERNAME TICKER AMOUNT PRICE
                 # transaction_length is the total size of the transaction, to ensure no partial transactions get read
                 # timestamp is the time in ns when the operation happened
-                # method is which hash table method was invoked (either INSERT or REMOVE)
-                # KEY_LENGTH is the length of KEY
+                # OPERATION is either buy or sell
+                # USERNAME_LEN is the length of USERNAME
+                # TICKER, AMOUNT, and PRICE detail the contents of the transaction
                 # each item is delimited by a space
 
                 # read total transaction length and make sure it lines up
@@ -221,21 +224,35 @@ class StockMarketBroker:
                     # read the operation from the entry - delimited by second space
                     operation, rest = rest.split(" ", 1)
                     # if its an insert
-                    if operation == "INSERT":
+                    if operation == "BUY":
                         # get the key length, which is delimited by the third space
-                        key_len, rest = rest.split(" ", 1)
-                        key_len = int(key_len)
+                        username_len, rest = rest.split(" ", 1)
+                        username_len = int(username_len)
                         # get the key and then the value is the rest of the entry
-                        key = rest[:key_len]
-                        value = json.loads(rest[key_len:])
+                        username = rest[:username_len]
+                        ticker, amount, price = rest[username_len + 1:].split(" ")
                         # perform operation
-                        self.hash_table.insert(key, value)
-                    elif operation == "REMOVE":
-                        # if its a remove operation, we only have key length and key
-                        key_len, rest = rest.split(" ", 1)
-                        key_len = int(key_len)
-                        key = rest[:key_len]
-                        self.hash_table.remove(key)
+                        self.users[username].purchase(ticker, float(amount), float(price))
+                    elif operation == "SELL":
+                        # get the key length, which is delimited by the third space
+                        username_len, rest = rest.split(" ", 1)
+                        username_len = int(username_len)
+                        # get the key and then the value is the rest of the entry
+                        username = rest[:username_len]
+                        ticker, amount, price = rest[username_len + 1:].split(" ")
+                        # perform operation
+                        self.users[username].sell(ticker, float(amount), float(price))
+                    elif operation == "REGISTER":
+                        username_len, rest = rest.split(" ", 1)
+                        username_len = int(username_len)
+                        # get the key and then the value is the rest of the entry
+                        username = rest[:username_len]
+                    
+                        pw_len, rest = rest[username_len + 1:].split(" ", 1)
+                        pw_len = int(pw_len)
+                        # get the key and then the value is the rest of the entry
+                        password = rest[:pw_len]
+                        self._register_user(username, password)
             # once we are done replaying all transactions, create a new checkpoint so we can delete the old transaction log
             self.create_checkpoint()
     
@@ -246,6 +263,7 @@ class StockMarketBroker:
         """registers Users"""
         # check its not already taken
         if username in self.users: return self.json_resp(False, f"Username is already in use, please select a different one.")
+        self.write_txn(f"{time.time_ns()} REGISTER {len(username)} {username} {len(password)} {password}\n")
         self.users[username] = StockMarketUser(username, password)
         print(f"DEBUG: User {username} was registered.")
         return self.json_resp(True, None)
@@ -267,7 +285,7 @@ class StockMarketBroker:
         """Purchase a stock"""
         # check valid ticker to buy
         ticker = request.get("ticker", None)
-        if ticker not in VALID_TICKERS or ticker is not None:
+        if ticker not in VALID_TICKERS or ticker is None:
             return self.json_resp(False, f"Ticker {ticker} is not valid.")
         
         # check amount to purchase
@@ -287,6 +305,7 @@ class StockMarketBroker:
         
         buy_price = self.latest_stock_info[ticker]
         if user.can_purchase(amount, buy_price):
+            self.write_txn(f"{time.time_ns()} BUY {len(user.username)} {user.username} {ticker} {amount} {buy_price}\n")
             user.purchase(ticker, amount, buy_price)
             print(f"DEBUG: {user.username} purchased {amount} stocks of {ticker} at {buy_price}")
             return self.json_resp(True, f"Purchased {amount} shares of {ticker} at {buy_price}.")
@@ -299,7 +318,7 @@ class StockMarketBroker:
         """Sell stocks """
         # check valid ticker to buy
         ticker = request.get("ticker", None)
-        if ticker not in VALID_TICKERS or ticker is not None:
+        if ticker not in VALID_TICKERS or ticker is None:
             return self.json_resp(False, f"Ticker {ticker} is not valid.")
         
         # check amount to purchase
@@ -319,6 +338,7 @@ class StockMarketBroker:
         
         sell_price = self.latest_stock_info[ticker]
         if user.can_sell(amount, ticker):
+            self.write_txn(f"{time.time_ns()} SELL {len(user.username)} {user.username} {ticker} {amount} {sell_price}\n")
             user.sell(ticker, amount, sell_price)
             print(f"DEBUG: {user.username} sold {amount} stocks of {ticker} at {sell_price}")
             return self.json_resp(True, f"Sold {amount} shares of {ticker} at {sell_price}.")
@@ -341,6 +361,8 @@ class StockMarketBroker:
     def _get_leaderboard(self):
         """reports the top 10 users
         """
+        if self.leaderboard == []:
+            self._update_leaderboard(None, None)
         # Top 10
         lstring = "TOP 10\n" + "---------------\n"
         try:
@@ -388,13 +410,6 @@ class StockMarketBroker:
         # switch statement to handle different request action
         if action == "buy":
             return self._user_buy(user, request)
-            # before we perform the operation, we write to the transaction log
-            #self.write_txn(f"{time.time_ns()} INSERT {len(key)} {key} {json.dumps(value)}\n")
-            # preform operation
-            # return code is 0 for success, 1 for failure
-            # message indicates what failure it was 
-            # hash_value is returned value (optional)
-            #return_code, msg, hash_value = self.hash_table.insert(key, value)
         elif action == "sell":
             return self._user_sell(user, request)
         elif action == 'balance':
@@ -405,13 +420,11 @@ class StockMarketBroker:
             # handle case for invalid action specified
             return self.json_resp(False, f"{action} is an invalid action.")
 
-    
-        
-        
-    
 
     # takes in the transaction message and writes it to the log
     def write_txn(self, message):
+        if self.txn_log == None:
+            return
         # write transaction message to log
         # prepend length of transaction so we know if we had an incomplete write
         self.txn_log.write(f"{len(message) - 1} {message}")
@@ -427,9 +440,9 @@ class StockMarketBroker:
         # write the current time as a header 
         shadow_ckpt.write(f"{time.time_ns()}\n")
         # iterate over every key value pair currently in the hash table and write it to the checkpoint file
-        for key, value in self.hash_table.get_hash_table_contents():
-            # KEY_LENGTH KEY VALUE
-            shadow_ckpt.write(f"{len(key)} {key} {json.dumps(value)}\n")
+        for username in self.users.keys():
+            user = self.users[username]
+            shadow_ckpt.write(f"{len(username)} {username} {len(user.password)} {user.password} {user.cash} {json.dumps(user.stocks)}")
 
         shadow_ckpt.close()
         # perform atomic update of checkpoint
