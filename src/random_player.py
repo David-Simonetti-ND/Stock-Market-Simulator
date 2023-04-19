@@ -7,18 +7,19 @@ def main():
         print("Error: please only enter two arguments which is the project name and your username")
         exit(1)
 
-    sm = StockMarketEndpoint(sys.argv[1], sys.argv[2], "password")
-    print("Connecting...")
-    sm.connect_to_broker()
-    print("Connected")
+    # connect to broker & simulator
+    sm = StockMarketEndpoint(name=sys.argv[1],
+                             username=sys.argv[2],
+                             password=sys.argv[2])
     
     # Authenticate self
     resp = sm.register()
-    # just skip b/c it means this person already connected
+    # just skip b/c it means this person already connected before
     if resp['Success'] == False:
         pass
     
-    
+    # random policy
+
     for i in range(5):
         print(sm.receive_latest_stock_update())
         response = sm.buy("TSLA", 10)

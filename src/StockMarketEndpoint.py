@@ -7,7 +7,11 @@ class StockMarketEndpoint:
         self.name = name
         self.username = username
         self.password = password
+        
+        # connect to broker & simulator
+        self.connect_to_broker()
         self.subscribe_to_simulator()
+        
 
     # make connection to broker
     def connect_to_broker(self):
@@ -75,8 +79,8 @@ class StockMarketEndpoint:
         except Exception:
             return self.receive_latest_stock_update()
 
-    # takes in a request, formats it to protocol, sends it off, and tries to read a response
     def send_request_to_broker(self, request):
+        """Takes in a request, formats it to protocol, sends it off, and tries to read a response"""
         timeout = 1
         encoded_request = format_message(request)
         if encoded_request == None:
