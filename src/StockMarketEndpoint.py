@@ -1,4 +1,5 @@
 import socket, http.client, json, time
+import threading
 from StockMarketLib import format_message, receive_data, lookup_server, SUBSCRIBE_TIMEOUT
 
 class StockMarketEndpoint:
@@ -11,6 +12,11 @@ class StockMarketEndpoint:
         # connect to broker & simulator
         self.connect_to_broker()
         self.subscribe_to_simulator()
+        
+        self.recent_price = None
+        simulator_thread = threading.Thread(target=self.receive_latest_stock_update, args = (self))
+        simulator_thread.run()
+        
         
 
     # make connection to broker
@@ -75,9 +81,10 @@ class StockMarketEndpoint:
         if (time.time_ns() - self.last_sub_time) > SUBSCRIBE_TIMEOUT:
             self.subscribe_to_simulator()
         try:
-            return self.info_sock.recv(1024)
+            self.recent_price = self.info_sock.recv(1024)
         except Exception:
-            return self.receive_latest_stock_update()
+            self.receive_latest_stock_update()
+        return
 
     def send_request_to_broker(self, request):
         """Takes in a request, formats it to protocol, sends it off, and tries to read a response"""
