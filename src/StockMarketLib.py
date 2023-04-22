@@ -16,6 +16,50 @@ CLIENT_DELAY = 5
 ## Default Timeout for subscribes
 SUBSCRIBE_TIMEOUT = 30 * (10 ** 9)
 
+class StockMarketUser:
+    """Defines a User for the broker to register
+    """
+    def __init__(self, username, password):
+        self.username = username
+        self.password = password
+        # init w/ 100k
+        self.cash = 100000
+        # init stocks
+        self.stocks = {ticker: 0 for ticker in VALID_TICKERS}
+
+    def can_purchase(self, amount, price):
+        """Checks that you have enough money to purchase.
+        """
+        return (self.cash - (amount * price) >= 0)
+
+    def can_sell(self, amount, ticker):
+        """Checks that you have enough of a certain stock to sell
+        """
+        return (self.stocks[ticker] >= amount)
+    
+    def purchase(self, ticker, amount, price):
+        """Purchase a stock
+        """
+        self.cash -= amount * price
+        self.stocks[ticker] += amount
+    
+    def sell(self, ticker, amount, price):
+        """Sell your stocks
+        """
+        self.cash += amount * price
+        self.stocks[ticker] -= amount
+
+    def __repr__(self):
+        """Representation of a user's account 
+        """
+        user_str = f"User: {self.username:.10}\n"
+        user_str += "-" * 16 + '\n'
+        user_str += f"Cash | {self.cash:.2f}\n"
+        for ticker, amount in self.stocks.items():
+            user_str += f"{ticker} | {amount}\n"
+            user_str += "-" * 16 + '\n'
+        return user_str
+
 # this is a helper library that the broker and endpoint both use
 
 # takes in a json message and returns it in binary format ready to send
