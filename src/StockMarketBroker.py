@@ -129,7 +129,7 @@ class StockMarketBroker:
             possible_simulators = lookup_server(self.broker_name, "stockmarketsim")
             for simulator in possible_simulators:
                 try:
-                    print_debug(f"Trying to connect to {simulator}")
+                    #print_debug(f"Trying to connect to {simulator}")
                     self.stockmarketsim_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     self.stockmarketsim_sock.connect((simulator["name"], simulator["port"]))
                     self.stockmarketsim_sock.sendall(format_message({"type": "broker"}))
@@ -538,7 +538,6 @@ def main():
         if server.stockmarketsim_sock in readable:
             status, data = receive_data(server.stockmarketsim_sock)
             ## error reading from stock market sim
-            print(status, data)
             if data is None:
                 # try to reconnect and go to next loop, since all data was out of date anyways
                 server.connect_to_simulator()

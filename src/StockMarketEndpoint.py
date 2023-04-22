@@ -17,7 +17,7 @@ class StockMarketEndpoint:
         
         # asyncronously recieve updates.
         self.recent_price = b'{}'
-        simulator_thread = threading.Thread(target=self.async_get_stock_update)
+        simulator_thread = threading.Thread(target=self.async_get_stock_update, daemon=True)
         simulator_thread.start()
         
     def connect_to_broker(self):
@@ -31,7 +31,7 @@ class StockMarketEndpoint:
             # try to connect to each server
             for broker in possible_brokers:
                 try:
-                    print_debug(f"Trying to connect to {broker}")
+                    #print_debug(f"Trying to connect to {broker}")
                     # create new socket and attempt connection
                     self.broker_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     self.broker_socket.connect((broker["name"], broker["port"]))
@@ -60,7 +60,7 @@ class StockMarketEndpoint:
             for sim in possible_sims:
                 try:
                     # create new socket and attempt connection
-                    print_debug(f"Trying to subscribe to {sim}")
+                    #print_debug(f"Trying to subscribe to {sim}")
                     self.sim_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     self.sim_socket.connect((sim["name"], sim["port"]))
                     self.sim_socket.sendall(format_message({"hostname": sock_info[0], "port": sock_info[1]}))
@@ -139,7 +139,8 @@ class StockMarketEndpoint:
     
     def get_leaderboard(self):
         request = {"action": "leaderboard", "ticker": None, "username": self.username, "password": self.password}
-        return self.send_request_to_broker(request)
+        resp = self.send_request_to_broker(request)
+        return resp['Value']
     
     
 
