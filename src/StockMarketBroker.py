@@ -111,6 +111,19 @@ class StockMarketBroker:
         self.ns_socket.connect(("catalog.cse.nd.edu", 9097))
         self.ns_update()
 
+        # connect to simulator
+        self.stockmarketsim_sock = None
+        self.connect_to_simulator()
+        
+        # update the leaderboard every minute 
+        signal.signal(signal.SIGALRM, self._update_leaderboard)
+        signal.setitimer(signal.ITIMER_REAL,60, 60) # now and every 60 seconds after
+            
+    def connect_to_simulator(self):
+        """ Connects to simulator"""
+        if self.stockmarketsim_sock is not None:
+            self.stockmarketsim_sock.close()
+        
         timeout = 1
         while True:
             possible_simulators = lookup_server(self.broker_name, "stockmarketsim")
@@ -128,12 +141,8 @@ class StockMarketBroker:
                 break
             print(f"Unable to connect to simulator, retrying in {timeout} seconds")
             time.sleep(timeout)
-            timeout *= 2
+            timeout *= 2    
         
-        # update the leaderboard every minute 
-        signal.signal(signal.SIGALRM, self._update_leaderboard)
-        signal.setitimer(signal.ITIMER_REAL,60, 60) # now and every 60 seconds after
-            
     def _update_leaderboard(self, _, __):
         ''' signaled function call to update the leaderboard.'''
         # snapshot of each ticker's price
@@ -528,6 +537,12 @@ def main():
             readable.remove(server.socket)
         if server.stockmarketsim_sock in readable:
             status, data = receive_data(server.stockmarketsim_sock)
+            ## error reading from stock market sim
+            print(status, data)
+            if data is None:
+                # try to reconnect and go to next loop, since all data was out of date anyways
+                server.connect_to_simulator()
+                continue
             server.latest_stock_info = json.loads(data)
             readable.remove(server.stockmarketsim_sock)
         # otherwise we have at least one client connection with data available
