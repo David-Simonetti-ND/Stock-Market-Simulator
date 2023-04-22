@@ -1,8 +1,10 @@
 import socket, http.client, json, time
 import threading
-from StockMarketLib import format_message, receive_data, lookup_server, SUBSCRIBE_TIMEOUT
+from StockMarketLib import format_message, receive_data, lookup_server, SUBSCRIBE_TIMEOUT, print_debug
 
 class StockMarketEndpoint:
+    """API Endpoint for a user to connect to the broker/simulator with
+    """
 
     def __init__(self, name, username, password):
         self.name = name
@@ -13,14 +15,14 @@ class StockMarketEndpoint:
         self.connect_to_broker()
         self.subscribe_to_simulator()
         
+        # asyncronously recieve updates.
         self.recent_price = None
-        simulator_thread = threading.Thread(target=self.receive_latest_stock_update, args = (self))
-        simulator_thread.run()
+        simulator_thread = threading.Thread(target=self.async_get_stock_update)
+        simulator_thread.start()
         
-        
-
-    # make connection to broker
     def connect_to_broker(self):
+        """Connect to the broker by searching the name server.
+        """
         # keep track of timeouts - exponentially increase by a factor of 2 each failed attempt
         timeout = 1
         while True:
@@ -29,11 +31,11 @@ class StockMarketEndpoint:
             # try to connect to each server
             for broker in possible_brokers:
                 try:
-                    print(f"Trying to connect to {broker}")
+                    print_debug(f"Trying to connect to {broker}")
                     # create new socket and attempt connection
                     self.broker_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     self.broker_socket.connect((broker["name"], broker["port"]))
-                    print("DEBUG: Connected to Broker.")
+                    print_debug("Connected to Broker.")
                     # if we are successful, we can return with a complete connection
                     return
                 except Exception as e:
@@ -64,7 +66,7 @@ class StockMarketEndpoint:
                     self.sim_socket.sendall(format_message({"hostname": sock_info[0], "port": sock_info[1]}))
                     self.sim_socket.close()
                     self.last_sub_time = time.time_ns()
-                    print("DEBUG: Resubscribed to StockMarketSim.")
+                    print_debug("Resubscribed to StockMarketSim.")
                     # if we are successful, we can return with a complete connection
                     return
                 except Exception as e:
@@ -75,16 +77,18 @@ class StockMarketEndpoint:
             time.sleep(timeout)
             timeout *= 2
         
+    def get_stock_update(self):
+        return self.recent_price
 
-    def receive_latest_stock_update(self):
-        """Recieve the last stock update and recursively retry if an error arises"""
-        if (time.time_ns() - self.last_sub_time) > SUBSCRIBE_TIMEOUT:
-            self.subscribe_to_simulator()
-        try:
-            self.recent_price = self.info_sock.recv(1024)
-        except Exception:
-            self.receive_latest_stock_update()
-        return
+    def async_get_stock_update(self):
+        """Recieve the last stock update asyncronously, and if data is missed, ignore."""
+        while True:
+            if (time.time_ns() - self.last_sub_time) > SUBSCRIBE_TIMEOUT:
+                self.subscribe_to_simulator()
+            try:
+                self.recent_price = self.info_sock.recv(1024)
+            except Exception:
+                pass
 
     def send_request_to_broker(self, request):
         """Takes in a request, formats it to protocol, sends it off, and tries to read a response"""

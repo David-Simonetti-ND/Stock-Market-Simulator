@@ -7,7 +7,7 @@ import select
 import random
 import http.client
 import signal
-from StockMarketLib import format_message, receive_data, lookup_server, VALID_TICKERS
+from StockMarketLib import format_message, receive_data, lookup_server, VALID_TICKERS, print_debug
 
 class StockMarketUser:
     """Defines a User for the broker to register
@@ -41,6 +41,9 @@ class StockMarketUser:
         """
         self.cash += amount * price
         self.stocks[ticker] -= amount
+        
+    def print_debug(self, *values):
+        print_debug(self.username, "--", *values)
 
     def __repr__(self):
         """Representation of a user's account 
@@ -79,7 +82,7 @@ class StockMarketBroker:
             exit(1)
 
         self.port_number = self.socket.getsockname()[1]
-        print(f"Listening on port {self.port_number}")
+        print_debug(f"Listening on port {self.port_number}")
         
         self.socket.listen()
         # use a set to keep track of all open sockets - master socket is the first socket
@@ -89,6 +92,9 @@ class StockMarketBroker:
         self.num_users = 0
         self.users = {}
         self.leaderboard = []
+        
+        # for stock info
+        self.latest_stock_info = None
 
         # see if we need to perform a rebuild after a crash
         # if there is a checkpoint file or a transaction log, we will reload in stock market data from those files
@@ -113,7 +119,7 @@ class StockMarketBroker:
                     self.stockmarketsim_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     self.stockmarketsim_sock.connect((simulator["name"], simulator["port"]))
                     self.stockmarketsim_sock.sendall(format_message({"type": "broker"}))
-                    print("DEBUG: Connected to StockMarketSim")
+                    print_debug("Connected to StockMarketSim")
                     break
                 except Exception:
                     self.stockmarketsim_sock = None
@@ -144,6 +150,7 @@ class StockMarketBroker:
         nw = [net_worth(u) for u in users]
         
         self.leaderboard = sorted(list(zip(users, nw)), key = lambda x: x[1], reverse=True)
+        print_debug("Leaderboard Updated.")
         
     
     def accept_new_connection(self):
@@ -160,7 +167,7 @@ class StockMarketBroker:
         message = json.dumps({"type" : "stockmarketbroker", "owner" : "dsimone2", "port" : self.port_number, "project" : self.broker_name})
         # send info to name server
         self.ns_socket.sendall(message.encode("utf-8"))
-        print("DEBUG: Name Server Updated.")
+        print_debug("Name Server Updated.")
         # keep track of last name server update
         self.last_ns_update = time.time_ns()
 
@@ -260,94 +267,133 @@ class StockMarketBroker:
         return {"Success": success, "Value": value}        
     
     def _register_user(self, username, password):
-        """registers Users"""
+        """Registers Users if they are not registered yet"""
         # check its not already taken
-        if username in self.users: return self.json_resp(False, f"Username is already in use, please select a different one.")
+        if username in self.users: 
+            err = f"Username {username} is already in use."
+            print_debug(err)
+            return self.json_resp(False, err)
         self.write_txn(f"{time.time_ns()} REGISTER {len(username)} {username} {len(password)} {password}\n")
         self.users[username] = StockMarketUser(username, password)
-        print(f"DEBUG: User {username} was registered.")
+        print_debug(f"User {username} was registered.")
         return self.json_resp(True, None)
     
     def _authenticate(self, username, password):
         """authenticates and retrieves the associated user"""
-        if username not in self.users: 
-            return self.json_resp(False, "User associated with Username does not exist.")
+        if username not in self.users:
+            err =  "User associated with Username does not exist."
+            print_debug(err)
+            return self.json_resp(False, err)
         else:
             user = self.users[username]
             # check password
             if user.password == password:
-                print(f"DEBUG: User {username} was authenticated.")
+                print_debug(f"User {username} was authenticated.")
                 return self.json_resp(True, user)
             else:
-                return self.json_resp(False, "Password does not match username provided.")
+                err = f"Password for {username} is incorrect"
+                print_debug(err)
+                return self.json_resp(False, err)
             
-    def _user_buy(self, user, request):
+    def _user_buy(self, user: StockMarketUser, request):
         """Purchase a stock"""
         # check valid ticker to buy
         ticker = request.get("ticker", None)
         if ticker not in VALID_TICKERS or ticker is None:
+            err = f"Ticker {ticker} is not valid."
+            user.print_debug(err)
             return self.json_resp(False, f"Ticker {ticker} is not valid.")
         
         # check amount to purchase
         amount = request.get("amount", None)
         if amount is None:
+            err = "Amount to purchase was not specified"
+            user.print_debug(err)
             return self.json_resp(False, "Amount to purchase was not specified")
         else:
             try: 
                 amount = int(amount)
             except Exception as e:
-                return self.json_resp(False, f"Amount must be an integer value: {e}")
+                err = f"Amount must be an integer value: {e}"
+                user.print_debug(err)
+                return self.json_resp(False, err)
             if amount < 0:
-                return self.json_resp(False, f"Amount must be a positive value >0.")
+                err = f"Amount must be a positive value >0."
+                user.print_debug(err)
+                return self.json_resp(False, err)
             elif amount == 0:
                 # automatic success
-                return self.json_resp(True, f"Purchased 0 shares of {ticker}.")
+                succ = f"Purchased 0 shares of {ticker}."
+                user.print_debug(succ)
+                return self.json_resp(True, succ )
         
+        # snapshot buy price
         buy_price = self.latest_stock_info[ticker]
+        
+        # can purchase
         if user.can_purchase(amount, buy_price):
             self.write_txn(f"{time.time_ns()} BUY {len(user.username)} {user.username} {ticker} {amount} {buy_price}\n")
             user.purchase(ticker, amount, buy_price)
-            print(f"DEBUG: {user.username} purchased {amount} stocks of {ticker} at {buy_price}")
-            return self.json_resp(True, f"Purchased {amount} shares of {ticker} at {buy_price}.")
+            succ = f"Purchased {amount} shares of {ticker} at {buy_price}"
+            user.print_debug(succ)
+            return self.json_resp(True, succ)
+        # insufficient funds
         else:
-            print(f"DEBUG: {user.username} could not afford {amount} stocks of {ticker} at {buy_price}")
-            return self.json_resp(False, f"Insufficient funds to purchase {amount} shares of {ticker} at {buy_price}")
+            err = f"Insufficient funds to purchase {amount} shares of {ticker} at {buy_price}"
+            user.print_debug(err)
+            return self.json_resp(False, err)
         
         
-    def _user_sell(self, user, request):
+    def _user_sell(self, user: StockMarketUser, request):
         """Sell stocks """
         # check valid ticker to buy
         ticker = request.get("ticker", None)
         if ticker not in VALID_TICKERS or ticker is None:
-            return self.json_resp(False, f"Ticker {ticker} is not valid.")
+            err =  f"Ticker {ticker} is not valid."
+            user.print_debug(err)
+            return self.json_resp(False, err)
         
         # check amount to purchase
         amount = request.get("amount", None)
         if amount is None:
-            return self.json_resp(False, "Amount to sell was not specified")
+            err = "Amount to sell was not specified"
+            user.print_debug(err)
+            return self.json_resp(False, err)
         else:
             try: 
                 amount = int(amount)
             except Exception as e:
-                return self.json_resp(False, f"Amount must be an integer value: {e}")
+                err = f"Amount must be an integer value: {e}"
+                user.print_debug(err)
+                return self.json_resp(False, err)
             if amount < 0:
-                return self.json_resp(False, f"Amount must be a positive value >0.")
+                err = f"Amount must be a positive value >0."
+                user.print_debug(err)
+                return self.json_resp(False, err)
             elif amount == 0:
                 # automatic success
-                return self.json_resp(True, f"Sold 0 shares of {ticker}.")
-        
+                succ = f"Sold 0 shares of {ticker}."
+                user.print_debug(succ)
+                return self.json_resp(True, succ)
+            
+        # snapshot sell price
         sell_price = self.latest_stock_info[ticker]
+        
+        # can sell
         if user.can_sell(amount, ticker):
             self.write_txn(f"{time.time_ns()} SELL {len(user.username)} {user.username} {ticker} {amount} {sell_price}\n")
             user.sell(ticker, amount, sell_price)
-            print(f"DEBUG: {user.username} sold {amount} stocks of {ticker} at {sell_price}")
-            return self.json_resp(True, f"Sold {amount} shares of {ticker} at {sell_price}.")
+            succ = f"Sold {amount} shares of {ticker} at {sell_price}"
+            user.print_debug(succ)
+            return self.json_resp(True, succ)
+        # insufficient shares
         else:
-            print(f"DEBUG: {user.username} could not sell {amount} stocks of {ticker} at {sell_price}")
-            return self.json_resp(False, f"Insufficient owned shares to sell {amount} shares of {ticker} at {sell_price}")
+            err = f"Insufficient owned shares to sell {amount} shares of {ticker} at {sell_price}"
+            user.print_debug(err)
+            return self.json_resp(False, err)
         
         
-    def _get_user_balance(self, user):
+    def _get_user_balance(self, user: StockMarketUser):
         """Gets a user's balance
         """
         # net worth
@@ -356,6 +402,7 @@ class StockMarketBroker:
             worth += self.latest_stock_info[ticker] * self.stocks[ticker]
         
         user_rep = str(user) + f"Net Worth: {worth}"
+        user.print_debug("\n" + user_rep)
         return self.json_resp(True, user_rep)
         
     def _get_leaderboard(self):
@@ -370,6 +417,7 @@ class StockMarketBroker:
                 lstring += self.leaderboard[i][0].username + ' | ' + str(round(self.leaderboard[i][1], 2))
         except:
             pass
+        print_debug("\n" + lstring)
         return self.json_resp(True, lstring)
         
     def perform_request(self, request):
@@ -433,6 +481,7 @@ class StockMarketBroker:
         os.fsync(self.txn_log)
         # another successful transaction
         self.txn_count += 1
+        print_debug("TXN LOG written.")
 
     def create_checkpoint(self):
         # open shadow checkpoint file to begin checkpointing
@@ -451,6 +500,8 @@ class StockMarketBroker:
         if self.txn_log != None:
             self.txn_log.close()
             self.txn_log = open("table.txn", "w")
+            
+        print_debug("CKPT created.")
 
 def main():
     # ensure only a port is given

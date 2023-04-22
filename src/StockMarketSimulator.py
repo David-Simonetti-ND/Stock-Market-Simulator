@@ -8,7 +8,7 @@ import numpy as np
 import signal
 import csv
 import sys
-from StockMarketLib import format_message, receive_data, VALID_TICKERS, SUBSCRIBE_TIMEOUT, GLOBAL_SPEEDUP, MINUTE_SPEEDUP, CLIENT_DELAY
+from StockMarketLib import format_message, receive_data, print_debug, VALID_TICKERS, SUBSCRIBE_TIMEOUT, GLOBAL_SPEEDUP, MINUTE_SPEEDUP, CLIENT_DELAY
 
 class StockMarketSimulator:
     """Simulates the Stock Market with the universe of stocks.
@@ -27,15 +27,20 @@ class StockMarketSimulator:
             with open(f'data/{t}.csv') as csvfile:
                 reader = csv.reader(csvfile)
                 self.stock_prices[t] = list(reader)
+                print_debug(f"Minute prices loaded for {t}.")
         self.minute = 1
+        
 
         
         # publish every 1/2 second
         self.publish_rate = .1 * 10e9 / GLOBAL_SPEEDUP
+        print_debug(f"Publish rate = {self.publish_rate / 10e9} p/sec")
         # actual update every 1/100th a second
         self.update_rate = .01 * 10e9 / GLOBAL_SPEEDUP
+        print_debug(f"Update rate = {self.update_rate / 10e9} u/sec")
         # minute (no )
         self.minute_rate = MINUTE_SPEEDUP * 60 * 10e9 / GLOBAL_SPEEDUP # change this for faster volatility
+        print_debug(f"Minute rate = {self.minute_rate / 10e9} seconds/minute")
 
         # save data to artificiually delay it.
         self.delayed_data = deque()
@@ -52,7 +57,7 @@ class StockMarketSimulator:
             print("Error: port in use")
             exit(1)
         self.host, self.port = self.recv_socket.getsockname()
-        print(f"Listening on port {self.port}")
+        print_debug(f"Listening on port {self.port}")
         
         # Publish Socket, bind to a port.
         self._init_pub_socket()
@@ -67,9 +72,11 @@ class StockMarketSimulator:
         error_code, data = receive_data(conn)
         if data.get("type", None) == "broker":
             self.broker_connection = conn
+            print_debug(f"New Broker {addr} connected.")
         else:
             self.sub_table.add(((data["hostname"], data["port"]), time.time_ns()))
             conn.close()
+            print_debug(f"New Subscriber connected.")
     
     def _init_pub_socket(self):
         """Initializes publish socket
@@ -99,6 +106,7 @@ class StockMarketSimulator:
                     "project" : self.name
                     }
         self.ns_socket.sendall(json.dumps(update_msg).encode("utf-8"))
+        print_debug("Name Server updated.")
     
     
     def simulate(self):
@@ -131,7 +139,6 @@ class StockMarketSimulator:
                 tick += 1
                 #self.simulate_one_tick(tick)
 
-                
             # don't publish every
             if (cur_time - prev_sub_time) > self.publish_rate:
                 self.publish_stock_data(tick)
@@ -181,9 +188,11 @@ class StockMarketSimulator:
         out_of_date_subs = [sub for sub in self.sub_table if (time.time_ns() - sub[1] > (SUBSCRIBE_TIMEOUT)) ]
         for sub in out_of_date_subs:
             self.sub_table.remove(sub)
+        if len(out_of_date_subs) != 0:
+            print_debug(f"Removed {len(out_of_date_subs)} subs.")
             
         # send data to subscribed sockets
-        print(f"Publishing to {len(self.sub_table)} clients...", update)
+        print_debug(f"Publishing to {len(self.sub_table)} clients...", update)
         for sub_sock in self.sub_table:
             self.pub_socket.sendto(message.encode("utf-8"), sub_sock[0])
 

@@ -16,6 +16,11 @@ CLIENT_DELAY = 5
 ## Default Timeout for subscribes
 SUBSCRIBE_TIMEOUT = 30 * (10 ** 9)
 
+## DEBUG
+DEBUG = True
+DEBUG = False
+
+
 # this is a helper library that the broker and endpoint both use
 
 # takes in a json message and returns it in binary format ready to send
@@ -123,3 +128,9 @@ def lookup_server(broker_name, server_type):
             timeout *= 2
             continue
         return possible_brokers
+    
+
+def print_debug(*values):
+    """prints if debug is true"""
+    if DEBUG:
+        print("DEBUG:", *values)

@@ -12,6 +12,9 @@ def main():
                              username=sys.argv[2],
                              password=sys.argv[2])
     
+    while True:
+        print(sm.get_stock_update())
+        time.sleep(.1)
     # Authenticate self
     resp = sm.register()
     # just skip b/c it means this person already connected before
