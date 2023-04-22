@@ -18,7 +18,7 @@ SUBSCRIBE_TIMEOUT = 30 * (10 ** 9)
 
 ## DEBUG
 DEBUG = True
-DEBUG = False
+# DEBUG = False
 
 
 # this is a helper library that the broker and endpoint both use

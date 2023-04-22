@@ -16,7 +16,7 @@ class StockMarketEndpoint:
         self.subscribe_to_simulator()
         
         # asyncronously recieve updates.
-        self.recent_price = None
+        self.recent_price = b'{}'
         simulator_thread = threading.Thread(target=self.async_get_stock_update)
         simulator_thread.start()
         
@@ -40,7 +40,6 @@ class StockMarketEndpoint:
                     return
                 except Exception as e:
                     # unable to connect, try another
-                    print(e)
                     pass
             # print error, wait a little, and try again
             print(f"Unable to connect to any potential brokers, retrying in {timeout} seconds")
@@ -61,6 +60,7 @@ class StockMarketEndpoint:
             for sim in possible_sims:
                 try:
                     # create new socket and attempt connection
+                    print_debug(f"Trying to subscribe to {sim}")
                     self.sim_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     self.sim_socket.connect((sim["name"], sim["port"]))
                     self.sim_socket.sendall(format_message({"hostname": sock_info[0], "port": sock_info[1]}))
@@ -73,12 +73,12 @@ class StockMarketEndpoint:
                     # unable to connect, try another
                     pass
             # print error, wait a little, and try again
-            print(f"Unable to connect to any potential brokers, retrying in {timeout} seconds")
+            print(f"Unable to connect to the stock market simulator , retrying in {timeout} seconds")
             time.sleep(timeout)
             timeout *= 2
         
     def get_stock_update(self):
-        return self.recent_price
+        return json.loads(self.recent_price)
 
     def async_get_stock_update(self):
         """Recieve the last stock update asyncronously, and if data is missed, ignore."""

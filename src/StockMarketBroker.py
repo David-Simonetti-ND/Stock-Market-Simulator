@@ -116,6 +116,7 @@ class StockMarketBroker:
             possible_simulators = lookup_server(self.broker_name, "stockmarketsim")
             for simulator in possible_simulators:
                 try:
+                    print_debug(f"Trying to connect to {simulator}")
                     self.stockmarketsim_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     self.stockmarketsim_sock.connect((simulator["name"], simulator["port"]))
                     self.stockmarketsim_sock.sendall(format_message({"type": "broker"}))
