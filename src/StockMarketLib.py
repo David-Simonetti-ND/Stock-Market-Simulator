@@ -50,6 +50,9 @@ class StockMarketUser:
         """
         self.cash += amount * price
         self.stocks[ticker] -= amount
+        
+    def print_debug(self, *values):
+        print_debug(self.username, "--", *values)
 
     def __repr__(self):
         """Representation of a user's account 

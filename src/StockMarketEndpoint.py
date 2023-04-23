@@ -118,7 +118,7 @@ class StockMarketEndpoint:
                 time.sleep(timeout)
                 timeout *= 2
                 self.close_connection()
-                self.connect_to_broker(self.broker_name)
+                self.connect_to_broker()
             else:
                 return response
 
