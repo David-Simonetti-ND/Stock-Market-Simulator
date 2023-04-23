@@ -409,7 +409,7 @@ class StockMarketBroker:
         # net worth
         worth = user.cash
         for ticker in VALID_TICKERS:
-            worth += self.latest_stock_info[ticker] * self.stocks[ticker]
+            worth += self.latest_stock_info[ticker] * user.stocks[ticker]
         
         user_rep = str(user) + f"Net Worth: {worth}"
         user.print_debug("\n" + user_rep)

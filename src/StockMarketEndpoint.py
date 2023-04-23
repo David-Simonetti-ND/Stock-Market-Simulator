@@ -138,10 +138,15 @@ class StockMarketEndpoint:
         return self.send_request_to_broker(request)
     
     def get_leaderboard(self):
-        request = {"action": "leaderboard", "ticker": None, "username": self.username, "password": self.password}
+        request = {"action": "leaderboard", "username": self.username, "password": self.password}
         resp = self.send_request_to_broker(request)
         return resp['Value']
     
+    def get_balance(self):
+        request = {"action": "balance", "username": self.username, "password": self.password}
+        resp = self.send_request_to_broker(request)
+        return resp['Value']
+        
     
 
     # def get_price(self, ticker):

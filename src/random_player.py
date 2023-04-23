@@ -1,7 +1,8 @@
 import sys, time
-import numpy as np
+import random
 
 from StockMarketEndpoint import *
+from StockMarketLib import VALID_TICKERS
 
 def main():
     if len(sys.argv) != 3:
@@ -19,32 +20,24 @@ def main():
         pass
     
     # random policy
-
-    for i in range(5):
-        print(sm.get_stock_update())
-        response = sm.buy("TSLA", 10)
-        print(response['Value'])
-        time.sleep(1)
-        response = sm.sell("TSLA", 10)
-        print(response['Value'])
-        
-    print(sm.get_leaderboard())
+    c = 0
     while True:
-        time.sleep(10)
-        print(sm.get_leaderboard())
-    '''
-    ht.connect_to_broker(sys.argv[1])
-    print(f"{'Description of expected output':60} | status of response | response/error from server")
-    response = ht.buy("TSL", 10)
-    print(f"{'Buying 10 of TSL':60} |", response["Result"], "  |", response["Value"])
-    response = ht.buy("BKF", 10)
-    print(f"{'Buying 10 of BKF':60} |", response["Result"], "  |", response["Value"])
-    response = ht.sell("NLE", 5)
-    print(f"{'Selling 10 of NLE':60} |", response["Result"], "  |", response["Value"])
-    response = ht.get_price("PER")
-    print(f"{'Getting price of PER':60} |", response["Result"], "  |", response["Value"])
-    ht.close_connection()
-    '''
+        time.sleep(1)
+        
+        action = random.choice(["buy", 'sell'])
+        tkr = random.choice(VALID_TICKERS)
+        amt = random.randint(1, 15)
+        if action == 'buy':
+            print(sm.buy(tkr, amt)['Value'])
 
+        elif action == 'sell':
+            print(sm.sell(tkr, amt)['Value'])
+        
+        if c % 10 == 0:
+            print(sm.get_balance())
+        if c % 60 == 0:
+            print(sm.get_leaderboard())
+            
+        c+=1    
 if __name__ == "__main__":
     main()
