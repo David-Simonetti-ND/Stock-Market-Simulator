@@ -1,16 +1,28 @@
 import socket, http.client, json, time
-from StockMarketLib import format_message, receive_data, lookup_server, SUBSCRIBE_TIMEOUT
+import threading
+from StockMarketLib import format_message, receive_data, lookup_server, SUBSCRIBE_TIMEOUT, print_debug
 
 class StockMarketEndpoint:
+    """API Endpoint for a user to connect to the broker/simulator with
+    """
 
     def __init__(self, name, username, password):
         self.name = name
         self.username = username
         self.password = password
+        
+        # connect to broker & simulator
+        self.connect_to_broker()
         self.subscribe_to_simulator()
-
-    # make connection to broker
+        
+        # asyncronously recieve updates.
+        self.recent_price = b'{}'
+        simulator_thread = threading.Thread(target=self.async_get_stock_update, daemon=True)
+        simulator_thread.start()
+        
     def connect_to_broker(self):
+        """Connect to the broker by searching the name server.
+        """
         # keep track of timeouts - exponentially increase by a factor of 2 each failed attempt
         timeout = 1
         while True:
@@ -19,16 +31,15 @@ class StockMarketEndpoint:
             # try to connect to each server
             for broker in possible_brokers:
                 try:
-                    print(f"Trying to connect to {broker}")
+                    #print_debug(f"Trying to connect to {broker}")
                     # create new socket and attempt connection
                     self.broker_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     self.broker_socket.connect((broker["name"], broker["port"]))
-                    print("DEBUG: Connected to Broker.")
+                    print_debug("Connected to Broker.")
                     # if we are successful, we can return with a complete connection
                     return
                 except Exception as e:
                     # unable to connect, try another
-                    print(e)
                     pass
             # print error, wait a little, and try again
             print(f"Unable to connect to any potential brokers, retrying in {timeout} seconds")
@@ -49,34 +60,38 @@ class StockMarketEndpoint:
             for sim in possible_sims:
                 try:
                     # create new socket and attempt connection
+                    #print_debug(f"Trying to subscribe to {sim}")
                     self.sim_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     self.sim_socket.connect((sim["name"], sim["port"]))
                     self.sim_socket.sendall(format_message({"hostname": sock_info[0], "port": sock_info[1]}))
                     self.sim_socket.close()
                     self.last_sub_time = time.time_ns()
-                    print("DEBUG: Resubscribed to StockMarketSim.")
+                    print_debug("Resubscribed to StockMarketSim.")
                     # if we are successful, we can return with a complete connection
                     return
                 except Exception as e:
                     # unable to connect, try another
                     pass
             # print error, wait a little, and try again
-            print(f"Unable to connect to any potential brokers, retrying in {timeout} seconds")
+            print(f"Unable to connect to the stock market simulator , retrying in {timeout} seconds")
             time.sleep(timeout)
             timeout *= 2
         
+    def get_stock_update(self):
+        return json.loads(self.recent_price)
 
-    def receive_latest_stock_update(self):
-        """Recieve the last stock update and recursively retry if an error arises"""
-        if (time.time_ns() - self.last_sub_time) > SUBSCRIBE_TIMEOUT:
-            self.subscribe_to_simulator()
-        try:
-            return self.info_sock.recv(1024)
-        except Exception:
-            return self.receive_latest_stock_update()
+    def async_get_stock_update(self):
+        """Recieve the last stock update asyncronously, and if data is missed, ignore."""
+        while True:
+            if (time.time_ns() - self.last_sub_time) > SUBSCRIBE_TIMEOUT:
+                self.subscribe_to_simulator()
+            try:
+                self.recent_price = self.info_sock.recv(1024)
+            except Exception:
+                pass
 
-    # takes in a request, formats it to protocol, sends it off, and tries to read a response
     def send_request_to_broker(self, request):
+        """Takes in a request, formats it to protocol, sends it off, and tries to read a response"""
         timeout = 1
         encoded_request = format_message(request)
         if encoded_request == None:
@@ -123,9 +138,15 @@ class StockMarketEndpoint:
         return self.send_request_to_broker(request)
     
     def get_leaderboard(self):
-        request = {"action": "leaderboard", "ticker": None, "username": self.username, "password": self.password}
-        return self.send_request_to_broker(request)
+        request = {"action": "leaderboard", "username": self.username, "password": self.password}
+        resp = self.send_request_to_broker(request)
+        return resp['Value']
     
+    def get_balance(self):
+        request = {"action": "balance", "username": self.username, "password": self.password}
+        resp = self.send_request_to_broker(request)
+        return resp['Value']
+        
     
 
     # def get_price(self, ticker):

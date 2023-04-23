@@ -16,6 +16,8 @@ CLIENT_DELAY = 5
 ## Default Timeout for subscribes
 SUBSCRIBE_TIMEOUT = 30 * (10 ** 9)
 
+DEBUG = True
+
 class StockMarketUser:
     """Defines a User for the broker to register
     """
@@ -167,3 +169,9 @@ def lookup_server(broker_name, server_type):
             timeout *= 2
             continue
         return possible_brokers
+    
+
+def print_debug(*values):
+    """prints if debug is true"""
+    if DEBUG:
+        print("DEBUG:", *values)

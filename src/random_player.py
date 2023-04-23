@@ -1,46 +1,43 @@
 import sys, time
+import random
 
 from StockMarketEndpoint import *
+from StockMarketLib import VALID_TICKERS
 
 def main():
     if len(sys.argv) != 3:
         print("Error: please only enter two arguments which is the project name and your username")
         exit(1)
 
-    sm = StockMarketEndpoint(sys.argv[1], sys.argv[2], "password")
-    print("Connecting...")
-    sm.connect_to_broker()
-    print("Connected")
-    
+    # connect to broker & simulator
+    sm = StockMarketEndpoint(name=sys.argv[1],
+                             username=sys.argv[2],
+                             password=sys.argv[2])
     # Authenticate self
     resp = sm.register()
-    # just skip b/c it means this person already connected
+    # just skip b/c it means this person already connected before
     if resp['Success'] == False:
         pass
     
-    
-    for i in range(5):
-        print(sm.receive_latest_stock_update())
-        response = sm.buy("TSLA", 10)
-        print(response['Value'])
+    # random policy
+    c = 0
+    while True:
         time.sleep(1)
-        response = sm.sell("TSLA", 10)
-        print(response['Value'])
         
-    print(sm.get_leaderboard())
-    '''
-    ht.connect_to_broker(sys.argv[1])
-    print(f"{'Description of expected output':60} | status of response | response/error from server")
-    response = ht.buy("TSL", 10)
-    print(f"{'Buying 10 of TSL':60} |", response["Result"], "  |", response["Value"])
-    response = ht.buy("BKF", 10)
-    print(f"{'Buying 10 of BKF':60} |", response["Result"], "  |", response["Value"])
-    response = ht.sell("NLE", 5)
-    print(f"{'Selling 10 of NLE':60} |", response["Result"], "  |", response["Value"])
-    response = ht.get_price("PER")
-    print(f"{'Getting price of PER':60} |", response["Result"], "  |", response["Value"])
-    ht.close_connection()
-    '''
+        action = random.choice(["buy", 'sell'])
+        tkr = random.choice(VALID_TICKERS)
+        amt = random.randint(1, 15)
+        if action == 'buy':
+            print(sm.buy(tkr, amt)['Value'])
 
+        elif action == 'sell':
+            print(sm.sell(tkr, amt)['Value'])
+        
+        if c % 10 == 0:
+            print(sm.get_balance())
+        if c % 60 == 0:
+            print(sm.get_leaderboard())
+            
+        c+=1    
 if __name__ == "__main__":
     main()
