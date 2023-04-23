@@ -72,6 +72,7 @@ class StockMarketBroker:
                 try:
                     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     sock.connect((server["name"], server["port"]))
+                    sock.settimeout(5)
                     sock.sendall(format_message({"type": "broker"}))
                     print_debug(f"Connected to server {server_type}")
                     break
@@ -91,17 +92,43 @@ class StockMarketBroker:
         for t in VALID_TICKERS:
             prices[t] = self.latest_stock_info[t]
             
-        def net_worth(user):
-            nw = user.cash
-            for t in VALID_TICKERS:
-                nw += user.stocks[t] * prices[t]
-            return nw
-        
-        users = list(self.users.values())
-        nw = [net_worth(u) for u in users]
-        
-        self.leaderboard = sorted(list(zip(users, nw)), key = lambda x: x[1], reverse=True)
+        users = {}
+        request = {"action": "broker_leaderboard", "latest_stock_info": self.latest_stock_info, "username": "broker", "password": "broker"}
+        timeout = 1
+        for i in range(self.num_chains):
+            chain_socket = self.chain_sockets[i]
+            while True:
+                try:
+                    chain_socket.sendall(format_message(request))
+                    status, data = receive_data(chain_socket)
+                except Exception as e:
+                    print(f"Unable to send request to database server, retrying in {timeout} seconds")
+                    time.sleep(timeout)
+                    timeout *= 2
+                    chain_socket.close()
+                    chain_socket = self.connect_to_server("chain-0")
+                    continue
+                if status == 0 and data != None:
+                    break
+            self.chain_sockets[i] = chain_socket
+            users = {**users, **data["Value"]}      
+        self.leaderboard = sorted(list([ (username, users[username]) for username in users.keys()]), key = lambda x: x[1], reverse=True)
         print_debug("Leaderboard Updated.")
+
+    def _get_leaderboard(self):
+        """reports the top 10 users
+        """
+        if self.leaderboard == []:
+            self._update_leaderboard(None, None)
+        # Top 10
+        lstring = "TOP 10\n" + "---------------\n"
+        try:
+            for i in range(10):
+                lstring += self.leaderboard[i][0] + ' | ' + str(round(self.leaderboard[i][1], 2)) + "\n"
+        except:
+            pass
+        print_debug("\n" + lstring)
+        return self.json_resp(True, lstring)
         
     
     def accept_new_connection(self):
@@ -123,16 +150,13 @@ class StockMarketBroker:
     def hash(self, string):
         if not isinstance(string, str):
             raise TypeError("Key must be a string")
-        factor_number = 3
         hash = 0
         # loop over each character in the string
         for character in string:
-            # multiply the ascii value of that character by a factor
-            hash += factor_number * ord(character)
-            # pick the next factor based on the previous character
-            factor_number = ord(character)
+            # add the ascii value of that character
+            hash += ord(character)
         # return the integer hash of the string
-        return hash
+        return hash % 41
     
     def json_resp(self, success, value):
         return {"Success": success, "Value": value}   
@@ -140,6 +164,8 @@ class StockMarketBroker:
     def service_request(self, request):
         if request.get("username", None) == None:
             return self.json_resp(False, "Username required to perform an action")
+        if request.get("action", None) == "leaderboard":
+            return self._get_leaderboard()
         # peform the request the client submitted
         # add current stock info to request
         request["latest_stock_info"] = self.latest_stock_info
@@ -148,11 +174,9 @@ class StockMarketBroker:
         timeout = 1 
         while True:
             try:
-                print("Request: ", request)
                 chain_socket.sendall(format_message(request))
                 status, data = receive_data(chain_socket)
             except Exception as e:
-                print(e)
                 print(f"Unable to send request to database server, retrying in {timeout} seconds")
                 time.sleep(timeout)
                 timeout *= 2

@@ -307,21 +307,17 @@ class ChainReplicator(StockMarketBroker):
         user_rep = str(user) + f"Net Worth: {worth}"
         user.print_debug("\n" + user_rep)
         return self.json_resp(True, user_rep)
-        
-    def _get_leaderboard(self):
-        """reports the top 10 users
-        """
-        if self.leaderboard == []:
-            self._update_leaderboard(None, None)
-        # Top 10
-        lstring = "TOP 10\n" + "---------------\n"
-        try:
-            for i in range(10):
-                lstring += self.leaderboard[i][0].username + ' | ' + str(round(self.leaderboard[i][1], 2))
-        except:
-            pass
-        print_debug("\n" + lstring)
-        return self.json_resp(True, lstring)
+    
+    def calculate_net_worths(self):
+        def net_worth(user):
+            nw = user.cash
+            for t in VALID_TICKERS:
+                nw += user.stocks[t] * self.latest_stock_info[t]
+            return nw
+        net_worths = {}
+        for user in self.users:
+            net_worths[user] = net_worth(self.users[user])
+        return net_worths
         
     def perform_request(self, request):
         """Redirect requests from a client to appropriate function.
@@ -344,8 +340,11 @@ class ChainReplicator(StockMarketBroker):
         password = request.get("password", None)
         if password is None: return self.json_resp(False, "Password not provided")
 
+        if action == "broker_leaderboard":
+            self.latest_stock_info = request.get("latest_stock_info")
+            return self.json_resp(True, self.calculate_net_worths())
         # register the user
-        if action == 'register':
+        elif action == 'register':
             return self._register_user(username, password)
         # autheticate using password
         else:
@@ -422,7 +421,7 @@ def main():
     while True:
         # if 1 minute has passed, perform a name server update
         if (time.time_ns() - chain.last_ns_update) >= (60*1000000000):
-            chain.ns_update({"type" : f"chain-{chain_num}", "owner" : "dsimone2", "port" : self.port_number, "project" : self.project_name})
+            chain.ns_update({"type" : f"chain-{chain_num}", "owner" : "dsimone2", "port" : chain.port_number, "project" : chain.project_name})
         
         readable, _, _ = select.select(chain.select_socks, [], [], 5)
 
