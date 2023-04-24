@@ -155,6 +155,7 @@ class StockMarketBroker:
         conn, addr = self.socket.accept()
         conn.settimeout(60)
         self.socket_table.add(conn)
+        
     ##################
     # Signal Updates #
     ##################
@@ -180,9 +181,11 @@ class StockMarketBroker:
     def _update_leaderboard(self):
         ''' signaled function call to update the leaderboard.'''
         # snapshot of each ticker's price
+        if self.latest_stock_info is None: return
         prices = {}
         for t in VALID_TICKERS:
             prices[t] = self.latest_stock_info[t]
+            
             
         def net_worth(user):
             nw = user.cash

@@ -17,8 +17,8 @@ CLIENT_DELAY = 5
 SUBSCRIBE_TIMEOUT = 30 * (10 ** 9)
 
 ## DEBUG Mode
-DEBUG = True
-# DEBUG = False
+# DEBUG = True
+DEBUG = False
 
 
 
@@ -92,7 +92,6 @@ def receive_data(socket):
     full_request = full_request.strip("\n")
     # make sure size of request matches what is in header
     if len(full_request) != size:
-        print(full_request, len(full_request), size)
         return (2, "Length of request in header does not match actual request length")
     # load the request into json format internally
     try:
