@@ -28,10 +28,10 @@ def main():
         tkr = random.choice(VALID_TICKERS)
         amt = random.randint(1, 15)
         if action == 'buy':
-            print(sm.buy(tkr, amt)['Value'])
+            print(sm.buy(tkr, amt))
 
         elif action == 'sell':
-            print(sm.sell(tkr, amt)['Value'])
+            print(sm.sell(tkr, amt))
         
         if c % 10 == 0:
             print(sm.get_balance())

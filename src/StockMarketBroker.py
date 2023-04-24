@@ -65,6 +65,7 @@ class StockMarketBroker:
 
         self.pending_conns = set()
         self.name_to_conn = {}
+        self.pending_reqs = []
 
     def connect_to_server(self, server_type):
         """ Connect to given server type on socket """
@@ -164,7 +165,7 @@ class StockMarketBroker:
     def json_resp(self, success, value):
         return {"Success": success, "Value": value}   
     
-    def start_request(self, request):
+    def start_request(self, request, conn):
         if request.get("username", None) == None:
             return self.json_resp(False, "Username required to perform an action")
         if request.get("action", None) == "leaderboard":
@@ -175,6 +176,9 @@ class StockMarketBroker:
         request["latest_stock_info"] = self.latest_stock_info
         username_hash = self.hash(request["username"])
         chain_socket = self.chain_sockets[username_hash % self.num_chains]
+        if chain_socket in self.name_to_conn.keys():
+            self.pending_reqs.append((request, conn))
+            return None
         timeout = 1 
         while True:
             try:
@@ -261,7 +265,7 @@ def main():
             # process requests from client until client disconnects
             # read a request, getting status (1 for error on read, 0 for successful reading), and the request
             status, request = receive_data(conn)
-            if status == 1:
+            if status != 0:
                 # send back error that occured
                 error_msg = server.json_resp(False, request)
                 try:
@@ -274,16 +278,23 @@ def main():
                 conn.close()
                 server.socket_table.remove(conn)
                 continue
-
             if request.get("action", None) != "leaderboard":
                 server.pending_conns.add(conn)
-                chain_servicer = server.start_request(request)
-                server.name_to_conn[chain_servicer] = conn
+                chain_servicer = server.start_request(request, conn)
+                if chain_servicer != None:
+                    server.name_to_conn[chain_servicer] = conn
             else:
                 try:
-                    conn.sendall(format_message(server.start_request(request)))
+                    conn.sendall(format_message(server.start_request(request, conn)))
                 except Exception:
                     pass
+        to_try = server.pending_reqs.copy()
+        for request, conn in to_try:
+            chain_servicer = server.start_request(request, conn)
+            if chain_servicer != None:
+                server.name_to_conn[chain_servicer] = conn
+                server.pending_conns.add(conn)
+                server.pending_reqs.remove((request, conn))
 
 
 
