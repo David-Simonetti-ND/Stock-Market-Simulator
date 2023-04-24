@@ -24,7 +24,7 @@ queue 1
 '''
 
 names = []
-with open("names.txt", "r") as f:
+with open("../names.txt", "r") as f:
     names = f.read().split("\n")
 
 for i in range(int(sys.argv[2])):
