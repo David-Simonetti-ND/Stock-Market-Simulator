@@ -33,7 +33,7 @@ class StockMarketSimulator:
 
         
         # publish every 1/2 second
-        self.publish_rate = .1 * 1e9 / GLOBAL_SPEEDUP
+        self.publish_rate = 1 * 1e9 / GLOBAL_SPEEDUP
         print_debug(f"Publish rate = {self.publish_rate / 1e9} p/sec")
         # actual update every 1/100th a second
         self.update_rate = .01 * 1e9 / GLOBAL_SPEEDUP
