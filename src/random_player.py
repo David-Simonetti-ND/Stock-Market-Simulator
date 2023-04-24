@@ -31,21 +31,27 @@ def main():
         tkr = random.choice(VALID_TICKERS)
         amt = random.randint(1, 15)
         if action == 'buy':
-            resp = sm.buy(tkr, amt)['Value']
-            if resp == "User associated with Username does not exist.":
-                sm.register()
-            else:
-                print(resp)
+            while True:
+                resp = sm.buy(tkr, amt)
+                if resp['Success'] != None and resp['Value'] != "User associated with Username does not exist.":
+                    print(resp['Value'], sm.username)
+                    break
+                else:
+                    print(resp, sm.username)
+                    sm.register()
 
         elif action == 'sell':
-            resp = sm.sell(tkr, amt)['Value']
-            if resp == "User associated with Username does not exist.":
-                sm.register()
-            else:
-                print(resp)
+            while True:
+                resp = sm.sell(tkr, amt)
+                if resp['Success'] != None and resp['Value'] != "User associated with Username does not exist.":
+                    print(resp['Value'], sm.username)
+                    break
+                else:
+                    print(resp, sm.username)
+                    sm.register()
         
         if c % 10 == 0:
-            print(sm.get_balance())
+            print(sm.get_balance(), sm.username)
         if c % 60 == 0:
             print(sm.get_leaderboard())
             

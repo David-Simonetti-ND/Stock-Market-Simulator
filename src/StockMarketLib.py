@@ -17,6 +17,7 @@ CLIENT_DELAY = 5
 SUBSCRIBE_TIMEOUT = 30 * (10 ** 9)
 
 DEBUG = True
+DEBUG = False
 
 class StockMarketUser:
     """Defines a User for the broker to register

@@ -66,6 +66,7 @@ class StockMarketBroker:
         self.pending_conns = set()
         self.name_to_conn = {}
         self.pending_reqs = []
+        self.done = set()
 
     def connect_to_server(self, server_type):
         """ Connect to given server type on socket """
@@ -210,6 +211,8 @@ class StockMarketBroker:
             self.name_to_conn[conn].sendall(format_message(response))
         except Exception:
             pass
+        self.done.add(self.name_to_conn[conn])
+        #print(len(self.done))
 
 
 def main():
@@ -265,6 +268,7 @@ def main():
                 server.finalize_request(conn)
                 server.pending_conns.remove(server.name_to_conn[conn])
                 del server.name_to_conn[conn]
+                random.shuffle(server.pending_reqs)
                 for request, attempted_conn in server.pending_reqs:
                     chain_sock = server.chain_sockets[server.hash(request["username"]) % server.num_chains]
                     if chain_sock != conn:
@@ -287,7 +291,7 @@ def main():
                     pass
                 continue
             # if connection was broken or closed, go back to waiting for a new connection
-            if not request:
+            if not request or request == {}:
                 conn.close()
                 server.socket_table.remove(conn)
                 continue
