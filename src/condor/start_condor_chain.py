@@ -49,6 +49,7 @@ for i in range(int(sys.argv[2])):
 while True:
     for i in range(len(log_files)):
         log = log_files[i]
-        if "aborted" in log.read():
+        updates = log.read()
+        if "aborted" in updates or "terminated" in updates:
             subprocess.Popen(["condor_submit", f"job{i}.txt"])
     time.sleep(1)
