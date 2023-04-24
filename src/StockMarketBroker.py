@@ -213,8 +213,8 @@ class StockMarketBroker:
             self.name_to_conn[index].sendall(format_message(response))
         except Exception as e:
             pass
-        self.done[self.name_to_conn[index]] = self.done.get(self.name_to_conn[index], 0) + 1
-        print(len(self.done.keys()), [self.done[x] for x in self.done.keys()])
+        #self.done[self.name_to_conn[index]] = self.done.get(self.name_to_conn[index], 0) + 1
+        #print(len(self.done.keys()), [self.done[x] for x in self.done.keys()])
 
 
 def main():
