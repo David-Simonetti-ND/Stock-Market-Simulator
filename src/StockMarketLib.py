@@ -79,7 +79,7 @@ def receive_data(socket):
     while full_request.find("\n") == -1:
         # try and get more data
         try:
-            partial_request = socket.recv(size)
+            partial_request = socket.recv(1024)
         # if the client reset connection, or closed the connection, quit and wait for a new connection
         except Exception as e:
             return (1, "Request timed out")
