@@ -14,10 +14,8 @@ def main():
                              username=sys.argv[2],
                              password=sys.argv[2])
     # Authenticate self
-    resp = sm.register()
-    # just skip b/c it means this person already connected before
-    if resp['Success'] == False:
-        pass
+    resp = sm.register(registered_ok=True)
+
     
     # random policy
     c = 0

@@ -16,9 +16,11 @@ CLIENT_DELAY = 5
 ## Default Timeout for subscribes
 SUBSCRIBE_TIMEOUT = 30 * (10 ** 9)
 
-## DEBUG
+## DEBUG Mode
 DEBUG = True
 # DEBUG = False
+
+
 
 
 # this is a helper library that the broker and endpoint both use
@@ -77,7 +79,7 @@ def receive_data(socket):
     while full_request.find("\n") == -1:
         # try and get more data
         try:
-            partial_request = socket.recv(1024)
+            partial_request = socket.recv(size)
         # if the client reset connection, or closed the connection, quit and wait for a new connection
         except Exception as e:
             return (1, "Request timed out")
@@ -90,6 +92,7 @@ def receive_data(socket):
     full_request = full_request.strip("\n")
     # make sure size of request matches what is in header
     if len(full_request) != size:
+        print(full_request, len(full_request), size)
         return (2, "Length of request in header does not match actual request length")
     # load the request into json format internally
     try:
@@ -134,3 +137,4 @@ def print_debug(*values):
     """prints if debug is true"""
     if DEBUG:
         print("DEBUG:", *values)
+        

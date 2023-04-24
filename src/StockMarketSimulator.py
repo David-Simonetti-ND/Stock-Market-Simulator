@@ -195,7 +195,6 @@ class StockMarketSimulator:
         print_debug(f"Publishing to {len(self.sub_table)} clients...", update)
         for sub_sock in self.sub_table:
             self.pub_socket.sendto(message.encode("utf-8"), sub_sock[0])
-
     
 if __name__ == "__main__":
     server = StockMarketSimulator(sys.argv[1])

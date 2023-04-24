@@ -209,6 +209,7 @@ class StockMarketBroker:
                 # cash and stock amounts are the rest of the entry
                 cash, stocks = rest[pw_len + 1:].split(" ", 1)
                 cash = float(cash)
+                print(stocks)
                 stocks = json.loads(stocks)
                 # add the entry to memory
                 self.users[username] = StockMarketUser(username, password)
@@ -535,6 +536,7 @@ class StockMarketBroker:
                     # try to reconnect and go to next loop, since all data was out of date anyways
                     self.connect_to_simulator()
                     continue
+                print(data)
                 self.latest_stock_info = json.loads(data)
                 readable.remove(self.stockmarketsim_sock)
             # otherwise we have at least one client connection with data available
