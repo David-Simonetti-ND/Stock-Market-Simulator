@@ -388,7 +388,7 @@ class ChainReplicator(StockMarketBroker):
     def create_checkpoint(self):
         print(os.listdir())
         # open shadow checkpoint file to begin checkpointing
-        shadow_ckpt = open("./table.ckpt.shadow", "w")
+        shadow_ckpt = open("table.ckpt.shadow", "w")
         # write the current time as a header 
         shadow_ckpt.write(f"{time.time_ns()}\n")
         # iterate over every key value pair currently in the hash table and write it to the checkpoint file
@@ -397,8 +397,9 @@ class ChainReplicator(StockMarketBroker):
             shadow_ckpt.write(f"{len(username)} {username} {len(user.password)} {user.password} {user.cash} {json.dumps(user.stocks)}\n")
 
         shadow_ckpt.close()
+        print(os.listdir())
         # perform atomic update of checkpoint
-        os.rename("./table.ckpt.shadow", f"./table{self.chain_num}.ckpt")
+        os.rename("table.ckpt.shadow", f"table{self.chain_num}.ckpt")
         # clear out the old transaction log only if we are compressing during normal operation. Otherwise, if we are restarting from a crash, the server will already overwrite the transaction log.
         if self.txn_log != None:
             self.txn_log.close()
