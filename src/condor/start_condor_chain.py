@@ -37,15 +37,11 @@ for i in range(int(sys.argv[2])):
         pass
     with open(f"log.{i}", "w") as f:
         pass
-exit(1)
+    with open(f"job{i}.txt", "w") as f:
+        f.write(condor_command.format(project_name = sys.argv[1], chain_number = int(sys.argv[2])))
+
 for i in range(int(sys.argv[2])):
-    try:
-        os.mkdir(str(i))
-    except Exception:
-        pass
-    os.chdir(str(i))
-    procs.append(subprocess.Popen(["python3", "../../ChainReplicator.py", sys.argv[1], f"{i}"]))
-    os.chdir("..")
+    procs.append(subprocess.Popen(["condor_submit", f"job{i}.txt"]))
 
 while True:
     time.sleep(1)
