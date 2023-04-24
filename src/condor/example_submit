@@ -10,4 +10,5 @@ request_disk   = 4096
 
 error   = output/err.$(Process)
 output  = output/out.$(Process)
-queue 10
+log     = logs/log.$(Process)
+queue 4
