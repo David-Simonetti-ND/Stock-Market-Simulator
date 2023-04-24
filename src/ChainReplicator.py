@@ -31,7 +31,8 @@ class ChainReplicator(StockMarketBroker):
             try:
                 self.socket.bind((socket.gethostname(), 9123 + i))
             # error if port already in use
-            except:
+            except Exception as e:
+                print(e)
                 print("Error: port in use")
                 
             if i == 99:
