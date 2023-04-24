@@ -23,12 +23,12 @@ class ChainReplicator(StockMarketBroker):
         self.project_name = project_name
         self.chain_num = chain_num
         # create socket
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # set 60 seconds timeout waiting for a connection, so we can update the name server
-        self.socket.settimeout(60)
         for i in range(100):
             # try to bind to port
             try:
+                self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                # set 60 seconds timeout waiting for a connection, so we can update the name server
+                self.socket.settimeout(60)
                 self.socket.bind((socket.gethostname(), 9123 + i))
             # error if port already in use
             except Exception as e:
