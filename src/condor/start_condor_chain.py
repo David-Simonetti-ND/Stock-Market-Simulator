@@ -43,9 +43,11 @@ for i in range(int(sys.argv[2])):
     log_files.append(open(f"log.{i}", "r"))
 
 for i in range(int(sys.argv[2])):
-    procs.append(subprocess.Popen(["condor_submit", f"job{i}.txt"]))
+    subprocess.Popen(["condor_submit", f"job{i}.txt"])
 
 while True:
-    for log in log_files:
-        print(log.read())
+    for i in range(len(log_files)):
+        log = log_files[i]
+        if "aborted" in log.read():
+            subprocess.Popen(["condor_submit", f"job{i}.txt"])
     time.sleep(1)
