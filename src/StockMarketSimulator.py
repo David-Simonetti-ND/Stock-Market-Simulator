@@ -33,14 +33,14 @@ class StockMarketSimulator:
 
         
         # publish every 1/2 second
-        self.publish_rate = .1 * 10e9 / GLOBAL_SPEEDUP
-        print_debug(f"Publish rate = {self.publish_rate / 10e9} p/sec")
+        self.publish_rate = .1 * 1e9 / GLOBAL_SPEEDUP
+        print_debug(f"Publish rate = {self.publish_rate / 1e9} p/sec")
         # actual update every 1/100th a second
-        self.update_rate = .01 * 10e9 / GLOBAL_SPEEDUP
-        print_debug(f"Update rate = {self.update_rate / 10e9} u/sec")
+        self.update_rate = .01 * 1e9 / GLOBAL_SPEEDUP
+        print_debug(f"Update rate = {self.update_rate / 1e9} u/sec")
         # minute (no )
-        self.minute_rate = MINUTE_SPEEDUP * 60 * 10e9 / GLOBAL_SPEEDUP # change this for faster volatility
-        print_debug(f"Minute rate = {self.minute_rate / 10e9} seconds/minute")
+        self.minute_rate = MINUTE_SPEEDUP * 60 * 1e9 / GLOBAL_SPEEDUP # change this for faster volatility
+        print_debug(f"Minute rate = {self.minute_rate / 1e9} seconds/minute")
 
         # save data to artificiually delay it.
         self.delayed_data = deque()

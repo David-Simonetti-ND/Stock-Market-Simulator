@@ -9,7 +9,7 @@ VALID_STOCK_NAMES = ["Tesla", "Microsoft", "Apple", "Nvidia", "Amazon"]
 ## global speedup
 GLOBAL_SPEEDUP = 1
 # how long is a minute compared to real life
-MINUTE_SPEEDUP = .1 
+MINUTE_SPEEDUP = 1 
 # how many publishes clients are delayed stock info for
 CLIENT_DELAY = 5
 
