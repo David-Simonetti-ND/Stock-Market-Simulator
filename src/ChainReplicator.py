@@ -23,7 +23,7 @@ class ChainReplicator(StockMarketBroker):
         self.project_name = project_name
         self.chain_num = chain_num
         # create socket
-        for i in range(100):
+        for i in range(1):
             # try to bind to port
             try:
                 self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

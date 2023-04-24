@@ -25,7 +25,7 @@ def main():
     # random policy
     c = 0
     while True:
-        time.sleep(1)
+        #time.sleep(1)
         
         action = random.choice(["buy", 'sell'])
         tkr = random.choice(VALID_TICKERS)
@@ -34,20 +34,20 @@ def main():
             while True:
                 resp = sm.buy(tkr, amt)
                 if resp['Success'] != None and resp['Value'] != "User associated with Username does not exist.":
-                    print(resp['Value'], sm.username)
+                    #print(resp['Value'], sm.username)
                     break
                 else:
-                    print(resp, sm.username)
+                    #print(resp, sm.username)
                     sm.register()
 
         elif action == 'sell':
             while True:
                 resp = sm.sell(tkr, amt)
                 if resp['Success'] != None and resp['Value'] != "User associated with Username does not exist.":
-                    print(resp['Value'], sm.username)
+                    #print(resp['Value'], sm.username)
                     break
                 else:
-                    print(resp, sm.username)
+                    #print(resp, sm.username)
                     sm.register()
         
         if c % 10 == 0:
