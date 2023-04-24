@@ -26,7 +26,8 @@ log     = log.{chain_number}
 queue 1
 '''
 
-
+with open(f"table.ckpt.shadow", "w") as f:
+    pass
 signal.signal(signal.SIGINT, handler)
 
 for i in range(int(sys.argv[2])):
