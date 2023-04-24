@@ -164,7 +164,7 @@ class StockMarketBroker:
     def json_resp(self, success, value):
         return {"Success": success, "Value": value}   
     
-    def service_request(self, request):
+    def start_request(self, request):
         if request.get("username", None) == None:
             return self.json_resp(False, "Username required to perform an action")
         if request.get("action", None) == "leaderboard":
@@ -179,7 +179,7 @@ class StockMarketBroker:
         while True:
             try:
                 chain_socket.sendall(format_message(request))
-                status, data = receive_data(chain_socket)
+                break
             except Exception as e:
                 print(f"Unable to send request to database server, retrying in {timeout} seconds")
                 time.sleep(timeout)
@@ -187,13 +187,21 @@ class StockMarketBroker:
                 chain_socket.close()
                 chain_socket = self.connect_to_server(f"chain-{username_hash % self.num_chains}")
                 continue
-            if data:
-                break
+        self.chain_sockets[username_hash % self.num_chains] = chain_socket
+        return chain_socket
+        
+    def finalize_request(self, conn):
+        status, data = receive_data(conn)
         if status == 0 and data:
-            self.chain_sockets[username_hash % self.num_chains] = chain_socket
-            return data
+            response = data
         else:
-            return self.json_resp(False, "The database server has crashed")
+            response = self.json_resp(False, "The database server has crashed")
+        # send response 
+        try:
+            # if the client disconnects before we try to send, get a new connection
+            self.name_to_conn[conn].sendall(format_message(response))
+        except Exception:
+            pass
 
 
 def main():
@@ -216,7 +224,7 @@ def main():
             server.ns_update({"type" : "stockmarketbroker", "owner" : "dsimone2", "port" : server.port_number, "project" : server.broker_name})
         # use select to return a list of sockets ready for reading
         # wait up to 5 seconds for an incoming connection
-        readable, _, _ = select.select(list(server.socket_table) + [server.stockmarketsim_sock], [], [], 5)
+        readable, _, _ = select.select(list(server.socket_table) + [server.stockmarketsim_sock] + list(server.name_to_conn.keys()), [], [], 5)
         # if no sockets are readable, try again
         if readable == []:
             continue
@@ -242,6 +250,14 @@ def main():
             # randomly pick a client to service
             conn = random.choice(readable)
             readable.remove(conn)
+            #print(conn, server.pending_conns, server.name_to_conn)
+            if conn in server.pending_conns:
+                continue
+            if conn in server.name_to_conn.keys():
+                server.finalize_request(conn)
+                server.pending_conns.remove(server.name_to_conn[conn])
+                del server.name_to_conn[conn]
+                continue
             # process requests from client until client disconnects
             # read a request, getting status (1 for error on read, 0 for successful reading), and the request
             status, request = receive_data(conn)
@@ -259,14 +275,16 @@ def main():
                 server.socket_table.remove(conn)
                 continue
 
-            response = server.service_request(request)
+            if request.get("action", None) != "leaderboard":
+                server.pending_conns.add(conn)
+                chain_servicer = server.start_request(request)
+                server.name_to_conn[chain_servicer] = conn
+            else:
+                try:
+                    conn.sendall(format_message(server.start_request(request)))
+                except Exception:
+                    pass
 
-            # send response 
-            try:
-                # if the client disconnects before we try to send, get a new connection
-                conn.sendall(format_message(response))
-            except Exception:
-                continue
 
 
 if __name__ == "__main__":

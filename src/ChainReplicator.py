@@ -77,7 +77,6 @@ class ChainReplicator(StockMarketBroker):
                 self.broker_conn.close()
             self.broker_conn = conn
             self.select_socks.append(conn)
-            print(self.broker_conn, self.select_socks)
     
     def rebuild_server(self):
         # time the last checkpoint was made - used to see which transactions from the transactions log we should actually play back
