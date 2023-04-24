@@ -66,7 +66,7 @@ class StockMarketBroker:
         self.pending_conns = set()
         self.name_to_conn = {}
         self.pending_reqs = []
-        self.done = set()
+        self.done = {}
 
     def connect_to_server(self, server_type):
         """ Connect to given server type on socket """
@@ -102,7 +102,7 @@ class StockMarketBroker:
         timeout = 1
         for i in range(self.num_chains):
             chain_socket = self.chain_sockets[i]
-            if chain_socket in self.name_to_conn.keys():
+            if i in self.name_to_conn.keys():
                 continue
             while True:
                 try:
@@ -182,8 +182,10 @@ class StockMarketBroker:
         request["latest_stock_info"] = self.latest_stock_info
         username_hash = self.hash(request["username"])
         chain_socket = self.chain_sockets[username_hash % self.num_chains]
-        if chain_socket in self.name_to_conn.keys():
-            self.pending_reqs.append((request, conn))
+        if (username_hash % self.num_chains) in self.name_to_conn.keys():
+            if (request, conn) not in self.pending_reqs:
+                self.pending_reqs.append((request, conn))
+            return None
         timeout = 1 
         while True:
             try:
@@ -197,10 +199,10 @@ class StockMarketBroker:
                 chain_socket = self.connect_to_server(f"chain-{username_hash % self.num_chains}")
                 continue
         self.chain_sockets[username_hash % self.num_chains] = chain_socket
-        return chain_socket
+        return username_hash % self.num_chains
         
-    def finalize_request(self, conn):
-        status, data = receive_data(conn)
+    def finalize_request(self, index):
+        status, data = receive_data(self.chain_sockets[index])
         if status == 0 and data:
             response = data
         else:
@@ -208,11 +210,11 @@ class StockMarketBroker:
         # send response 
         try:
             # if the client disconnects before we try to send, get a new connection
-            self.name_to_conn[conn].sendall(format_message(response))
-        except Exception:
+            self.name_to_conn[index].sendall(format_message(response))
+        except Exception as e:
             pass
-        self.done.add(self.name_to_conn[conn])
-        #print(len(self.done))
+        #self.done[self.name_to_conn[index]] = self.done.get(self.name_to_conn[index], 0) + 1
+        #print(len(self.done.keys()), [self.done[x] for x in self.done.keys()])
 
 
 def main():
@@ -235,7 +237,7 @@ def main():
             server.ns_update({"type" : "stockmarketbroker", "owner" : "dsimone2", "port" : server.port_number, "project" : server.broker_name})
         # use select to return a list of sockets ready for reading
         # wait up to 5 seconds for an incoming connection
-        readable, _, _ = select.select(list(server.socket_table) + [server.stockmarketsim_sock] + list(server.name_to_conn.keys()), [], [], 5)
+        readable, _, _ = select.select(list(server.socket_table) + [server.stockmarketsim_sock] + list([server.chain_sockets[x] for x in server.name_to_conn.keys()]), [], [], 5)
         # if no sockets are readable, try again
         if readable == []:
             continue
@@ -264,12 +266,14 @@ def main():
             #print(conn, server.pending_conns, server.name_to_conn)
             if conn in server.pending_conns:
                 continue
-            if conn in server.name_to_conn.keys():
-                server.finalize_request(conn)
-                server.pending_conns.remove(server.name_to_conn[conn])
-                del server.name_to_conn[conn]
+            if conn in [server.chain_sockets[x] for x in server.name_to_conn.keys()]:
+                index = list(server.chain_sockets.values()).index(conn)
+                server.finalize_request(index)
+                server.pending_conns.remove(server.name_to_conn[index])
+                del server.name_to_conn[index]
                 random.shuffle(server.pending_reqs)
-                for request, attempted_conn in server.pending_reqs:
+                to_try = [x for x in server.pending_reqs]
+                for request, attempted_conn in to_try:
                     chain_sock = server.chain_sockets[server.hash(request["username"]) % server.num_chains]
                     if chain_sock != conn:
                         continue
