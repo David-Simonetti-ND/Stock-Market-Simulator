@@ -75,7 +75,6 @@ class StockMarketBroker:
             possible_servers = lookup_server(self.broker_name, server_type) #"stockmarketsim")
             for server in possible_servers:
                 try:
-                    print(server["name"], server["port"])
                     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     sock.settimeout(5)
                     sock.connect((server["name"], server["port"]))
