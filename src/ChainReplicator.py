@@ -386,6 +386,7 @@ class ChainReplicator(StockMarketBroker):
         print_debug("TXN LOG written.")
 
     def create_checkpoint(self):
+        print(os.listdir())
         # open shadow checkpoint file to begin checkpointing
         shadow_ckpt = open("./table.ckpt.shadow", "w")
         # write the current time as a header 
