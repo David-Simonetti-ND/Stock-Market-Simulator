@@ -231,7 +231,7 @@ def main():
 
     server = StockMarketBroker(sys.argv[1], num_chains)
     total_requests_handled = 0
-    start_time = time.time()
+    start_time = -1
     while True:
         # if 1 minute has passed, perform a name server update
         if (time.time_ns() - server.last_ns_update) >= (60*1000000000):
@@ -258,6 +258,8 @@ def main():
         # otherwise we have at least one client connection with data available
         # handle all pendings reads before performing select again
         while len(readable) > 0:
+            if start_time == -1:
+                start_time = time.time()
             if (total_requests_handled % 1_000) <= 100:
                 print("Average throughput: ", total_requests_handled / (time.time() - start_time))
             # check if we should perform a name server update
