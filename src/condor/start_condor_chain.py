@@ -30,6 +30,7 @@ with open(f"table.ckpt.shadow", "w") as f:
     pass
 signal.signal(signal.SIGINT, handler)
 
+log_files = []
 for i in range(int(sys.argv[2])):
     with open(f"table{i}.ckpt", "w") as f:
         f.write("0\n")
@@ -39,9 +40,12 @@ for i in range(int(sys.argv[2])):
         pass
     with open(f"job{i}.txt", "w") as f:
         f.write(condor_command.format(project_name = sys.argv[1], chain_number = i))
+    log_files.append(open(f"log.{i}", "r"))
 
 for i in range(int(sys.argv[2])):
     procs.append(subprocess.Popen(["condor_submit", f"job{i}.txt"]))
 
 while True:
+    for log in log_files:
+        print(log.read())
     time.sleep(1)
