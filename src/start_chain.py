@@ -13,12 +13,15 @@ def handler(signum, frame):
  
 signal.signal(signal.SIGINT, handler)
 
-shutil.rmtree("chain")
-os.mkdir("chain")
+#shutil.rmtree("chain")
+#os.mkdir("chain")
 os.chdir("chain")
 
 for i in range(int(sys.argv[2])):
-    os.mkdir(str(i))
+    try:
+        os.mkdir(str(i))
+    except Exception:
+        pass
     os.chdir(str(i))
     procs.append(subprocess.Popen(["python3", "../../ChainReplicator.py", sys.argv[1], f"{i}"]))
     os.chdir("..")

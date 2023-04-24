@@ -63,6 +63,9 @@ class StockMarketBroker:
         for i in range(num_chains):
             self.chain_sockets[i] = self.connect_to_server(f"chain-{i}")
 
+        self.pending_conns = set()
+        self.name_to_conn = {}
+
     def connect_to_server(self, server_type):
         """ Connect to given server type on socket """
         timeout = 1
@@ -106,7 +109,7 @@ class StockMarketBroker:
                     time.sleep(timeout)
                     timeout *= 2
                     chain_socket.close()
-                    chain_socket = self.connect_to_server("chain-0")
+                    chain_socket = self.connect_to_server("chain-{i}")
                     continue
                 if status == 0 and data != None:
                     break
@@ -165,6 +168,7 @@ class StockMarketBroker:
         if request.get("username", None) == None:
             return self.json_resp(False, "Username required to perform an action")
         if request.get("action", None) == "leaderboard":
+            request["latest_stock_info"] = self.latest_stock_info
             return self._get_leaderboard()
         # peform the request the client submitted
         # add current stock info to request
@@ -181,7 +185,7 @@ class StockMarketBroker:
                 time.sleep(timeout)
                 timeout *= 2
                 chain_socket.close()
-                chain_socket = self.connect_to_server("chain-0")
+                chain_socket = self.connect_to_server(f"chain-{username_hash % self.num_chains}")
                 continue
             if data:
                 break

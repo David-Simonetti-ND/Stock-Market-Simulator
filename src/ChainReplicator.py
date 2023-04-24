@@ -77,6 +77,7 @@ class ChainReplicator(StockMarketBroker):
                 self.broker_conn.close()
             self.broker_conn = conn
             self.select_socks.append(conn)
+            print(self.broker_conn, self.select_socks)
     
     def rebuild_server(self):
         # time the last checkpoint was made - used to see which transactions from the transactions log we should actually play back
@@ -341,7 +342,7 @@ class ChainReplicator(StockMarketBroker):
         if password is None: return self.json_resp(False, "Password not provided")
 
         if action == "broker_leaderboard":
-            self.latest_stock_info = request.get("latest_stock_info")
+            self.latest_stock_info = request.get("latest_stock_info", self.latest_stock_info)
             return self.json_resp(True, self.calculate_net_worths())
         # register the user
         elif action == 'register':
@@ -393,7 +394,7 @@ class ChainReplicator(StockMarketBroker):
         # iterate over every key value pair currently in the hash table and write it to the checkpoint file
         for username in self.users.keys():
             user = self.users[username]
-            shadow_ckpt.write(f"{len(username)} {username} {len(user.password)} {user.password} {user.cash} {json.dumps(user.stocks)}")
+            shadow_ckpt.write(f"{len(username)} {username} {len(user.password)} {user.password} {user.cash} {json.dumps(user.stocks)}\n")
 
         shadow_ckpt.close()
         # perform atomic update of checkpoint
@@ -422,6 +423,10 @@ def main():
         # if 1 minute has passed, perform a name server update
         if (time.time_ns() - chain.last_ns_update) >= (60*1000000000):
             chain.ns_update({"type" : f"chain-{chain_num}", "owner" : "dsimone2", "port" : chain.port_number, "project" : chain.project_name})
+
+        if chain.txn_count >= 100:
+            chain.create_checkpoint()
+            chain.txn_count = 0
         
         readable, _, _ = select.select(chain.select_socks, [], [], 5)
 
@@ -435,7 +440,7 @@ def main():
         if chain.broker_conn in readable:
             status, data = receive_data(chain.broker_conn)
             if status == 0 and data != None:
-                chain.latest_stock_info = data.get("latest_stock_info")
+                chain.latest_stock_info = data.get("latest_stock_info", chain.latest_stock_info)
                 RPC_response = chain.perform_request(data)
                 RPC_response = format_message(RPC_response)
             else:
