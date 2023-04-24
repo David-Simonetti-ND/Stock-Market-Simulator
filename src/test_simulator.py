@@ -16,7 +16,7 @@ def run_multiple_users(num_users, proj_name):
             for i in range(num_users)]
     
     # sleep for a bit to stabilize
-    time.sleep(10)
+    time.sleep(60)
     for r in runs:
         r.send_signal(signal.SIGINT)
     

@@ -14,14 +14,14 @@ class StockMarketSimulator:
     """Simulates the Stock Market with the universe of stocks.
     """
     def __init__(self, name):
-        # name of market simulator
+        ## Project Name
         self.name = name
         
-        # tickers
+        ## Set Tickers
         self.tickers = VALID_TICKERS
         self.num_tickers = len(self.tickers)
         
-        # load true stock prices
+        ## Loading Stock Prices
         self.stock_prices = {}
         for t in self.tickers:
             with open(f'data/{t}.csv') as csvfile:
@@ -30,8 +30,7 @@ class StockMarketSimulator:
                 print_debug(f"Minute prices loaded for {t}.")
         self.minute = 1
         
-
-        
+        ## Set Rates
         # publish every 1/2 second
         self.publish_rate = .1 * 1e9 / GLOBAL_SPEEDUP
         print_debug(f"Publish rate = {self.publish_rate / 1e9} p/sec")
@@ -42,13 +41,13 @@ class StockMarketSimulator:
         self.minute_rate = MINUTE_SPEEDUP * 60 * 1e9 / GLOBAL_SPEEDUP # change this for faster volatility
         print_debug(f"Minute rate = {self.minute_rate / 1e9} seconds/minute")
 
-        # save data to artificiually delay it.
-        self.delayed_data = deque()
-        
-        # simulate the next minute
+        ## Simulate the next minute
         self.simulate_next_minute()
-            
-        # Open a socket to accept new client subscriptions
+        
+        ## save data to artificially delay it.
+        self.delayed_data = deque()
+
+        ## Open a socket to accept new client subscriptions
         self.recv_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.recv_socket.bind(('', 0))
@@ -64,19 +63,10 @@ class StockMarketSimulator:
         
         # send information to name server
         self._init_ns_socket()
-    
-    def accept_new_connection(self):
-        """ add a new client to the subscription table
-        """
-        conn, addr = self.recv_socket.accept()
-        error_code, data = receive_data(conn)
-        if data.get("type", None) == "broker":
-            self.broker_connection = conn
-            print_debug(f"New Broker {addr} connected.")
-        else:
-            self.sub_table.add(((data["hostname"], data["port"]), time.time_ns()))
-            conn.close()
-            print_debug(f"New Subscriber connected.")
+
+    ##################
+    # Socket Methods #
+    ##################
     
     def _init_pub_socket(self):
         """Initializes publish socket
@@ -97,7 +87,7 @@ class StockMarketSimulator:
         signal.setitimer(signal.ITIMER_REAL, 0.1, 60) # now and every 60 seconds after
         
     def _update_ns(self, _, __):
-        """Update Name server handler"""
+        """Update Name server handler to periodically update name server"""
         # update msg
         update_msg = {
                     "type" : "stockmarketsim",
@@ -107,7 +97,23 @@ class StockMarketSimulator:
                     }
         self.ns_socket.sendall(json.dumps(update_msg).encode("utf-8"))
         print_debug("Name Server updated.")
+        
+    def accept_new_connection(self):
+        """ Add a new client to the subscription table
+        """
+        conn, addr = self.recv_socket.accept()
+        error_code, data = receive_data(conn)
+        if data.get("type", None) == "broker":
+            self.broker_connection = conn
+            print_debug(f"New Broker {addr} connected.")
+        else:
+            self.sub_table.add(((data["hostname"], data["port"]), time.time_ns()))
+            conn.close()
+            print_debug(f"New Subscriber connected.")
     
+    ##########################
+    # Main Simulation Method #
+    ##########################
     
     def simulate(self):
         """Begin Simulation loop
@@ -144,6 +150,10 @@ class StockMarketSimulator:
                 self.publish_stock_data(tick)
                 prev_sub_time = cur_time
     
+    ###############
+    # Sim Backend #
+    ###############
+    
     def simulate_next_minute(self):
         '''Simulates the next minute's data by using a random walk over a minute bar'''
         self.next_minute = {}
@@ -153,6 +163,10 @@ class StockMarketSimulator:
             # compute random motions
             self.next_minute[t] = (((float(min[5]) - float(min[2])) / (self.minute_rate/self.update_rate)) * x + float(min[2]) + np.random.normal(0, np.random.uniform(.1, 1.9) * np.abs(float(min[3]) - float(min[4])) + .01, len(x))).round(2)
         self.minute += 1
+    
+    ##################
+    # Publish Method #
+    ##################
 
     def publish_stock_data(self, tick):
         """Publishes Stock Data to every subscriber

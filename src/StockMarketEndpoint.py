@@ -21,7 +21,11 @@ class StockMarketEndpoint:
         self.recent_price = {}
         simulator_thread = threading.Thread(target=self.async_get_stock_update, daemon=True)
         simulator_thread.start()
-        
+    
+    ##################
+    # Socket Methods #
+    ##################
+    
     def connect_to_broker(self):
         """Connect to the broker by searching the name server.
         """
@@ -81,23 +85,7 @@ class StockMarketEndpoint:
             time.sleep(timeout)
             timeout *= 2
         
-    def get_stock_update(self):
-        """ Returns local storage of stock update which is updated asynchronously
-        """
-        return self.recent_price
-
-    def async_get_stock_update(self):
-        """Recieve the last stock update asyncronously, and if data is missed, ignore.
-        Recv is blocking, so other threads can run while blocking.
-        """
-        while True:
-            if (time.time_ns() - self.last_sub_time) > SUBSCRIBE_TIMEOUT:
-                self.subscribe_to_simulator()
-            try:
-                self.recent_price = json.loads(self.info_sock.recv(1024))
-            except Exception:
-                pass
-
+    
     def send_request_to_broker(self, request):
         """Takes in a request, formats it to protocol, sends it off, and tries to read a response
         """
@@ -135,6 +123,31 @@ class StockMarketEndpoint:
         """Closes connection
         """
         self.broker_socket.close()
+        
+    ################
+    # Data Methods #
+    ################
+    
+    def get_stock_update(self):
+        """ Returns local storage of stock update which is updated asynchronously
+        """
+        return self.recent_price
+
+    def async_get_stock_update(self):
+        """Recieve the last stock update asyncronously, and if data is missed, ignore.
+        Recv is blocking, so other threads can run while blocking.
+        """
+        while True:
+            if (time.time_ns() - self.last_sub_time) > SUBSCRIBE_TIMEOUT:
+                self.subscribe_to_simulator()
+            try:
+                self.recent_price = json.loads(self.info_sock.recv(1024))
+            except Exception:
+                pass
+
+    #############
+    # API Calls #
+    #############
 
     def register(self, registered_ok = False):
         """Registers user with broker
