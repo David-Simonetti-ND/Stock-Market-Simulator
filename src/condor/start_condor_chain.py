@@ -38,7 +38,7 @@ for i in range(int(sys.argv[2])):
     with open(f"log.{i}", "w") as f:
         pass
     with open(f"job{i}.txt", "w") as f:
-        f.write(condor_command.format(project_name = sys.argv[1], chain_number = int(sys.argv[2])))
+        f.write(condor_command.format(project_name = sys.argv[1], chain_number = i))
 
 for i in range(int(sys.argv[2])):
     procs.append(subprocess.Popen(["condor_submit", f"job{i}.txt"]))
