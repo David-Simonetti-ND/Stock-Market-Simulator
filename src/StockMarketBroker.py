@@ -101,6 +101,8 @@ class StockMarketBroker:
         timeout = 1
         for i in range(self.num_chains):
             chain_socket = self.chain_sockets[i]
+            if chain_socket in self.name_to_conn.keys():
+                continue
             while True:
                 try:
                     chain_socket.sendall(format_message(request))
@@ -115,7 +117,10 @@ class StockMarketBroker:
                 if status == 0 and data != None:
                     break
             self.chain_sockets[i] = chain_socket
-            users = {**users, **data["Value"]}      
+            try:
+                users = {**users, **data["Value"]}      
+            except:
+                pass
         self.leaderboard = sorted(list([ (username, users[username]) for username in users.keys()]), key = lambda x: x[1], reverse=True)
         print_debug("Leaderboard Updated.")
 
@@ -178,7 +183,6 @@ class StockMarketBroker:
         chain_socket = self.chain_sockets[username_hash % self.num_chains]
         if chain_socket in self.name_to_conn.keys():
             self.pending_reqs.append((request, conn))
-            return None
         timeout = 1 
         while True:
             try:
@@ -261,6 +265,15 @@ def main():
                 server.finalize_request(conn)
                 server.pending_conns.remove(server.name_to_conn[conn])
                 del server.name_to_conn[conn]
+                for request, attempted_conn in server.pending_reqs:
+                    chain_sock = server.chain_sockets[server.hash(request["username"]) % server.num_chains]
+                    if chain_sock != conn:
+                        continue
+                    chain_servicer = server.start_request(request, attempted_conn)
+                    if chain_servicer != None:
+                        server.name_to_conn[chain_servicer] = attempted_conn
+                        server.pending_conns.add(attempted_conn)
+                        server.pending_reqs.remove((request, attempted_conn))
                 continue
             # process requests from client until client disconnects
             # read a request, getting status (1 for error on read, 0 for successful reading), and the request
@@ -288,13 +301,6 @@ def main():
                     conn.sendall(format_message(server.start_request(request, conn)))
                 except Exception:
                     pass
-        to_try = server.pending_reqs.copy()
-        for request, conn in to_try:
-            chain_servicer = server.start_request(request, conn)
-            if chain_servicer != None:
-                server.name_to_conn[chain_servicer] = conn
-                server.pending_conns.add(conn)
-                server.pending_reqs.remove((request, conn))
 
 
 
