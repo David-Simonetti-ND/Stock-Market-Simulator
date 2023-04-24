@@ -50,10 +50,11 @@ def main():
                     #print(resp, sm.username)
                     sm.register()
         
-        if c % 10 == 0:
-            print(sm.get_balance(), sm.username)
-        if c % 60 == 0:
-            print(sm.get_leaderboard())
+        if False:
+            if c % 10 == 0:
+                print(sm.get_balance(), sm.username)
+            if c % 60 == 0:
+                print(sm.get_leaderboard())
             
         c+=1    
 if __name__ == "__main__":
