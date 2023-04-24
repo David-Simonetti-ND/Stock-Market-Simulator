@@ -28,7 +28,7 @@ class ChainReplicator(StockMarketBroker):
         self.socket.settimeout(60)
         # try to bind to port
         try:
-            self.socket.bind((socket.gethostname(), 0))
+            self.socket.bind((socket.gethostname(), 9123))
         # error if port already in use
         except:
             print("Error: port in use")
@@ -52,7 +52,7 @@ class ChainReplicator(StockMarketBroker):
         self.rebuild_server()
         # once the server is rebuilt, there is two cases
         # start new transaction log
-        self.txn_log = open("table.txn", "w")
+        self.txn_log = open(f"table{self.chain_num}.txn", "w")
         self.txn_count = 0
 
         # send information to name server
@@ -82,8 +82,8 @@ class ChainReplicator(StockMarketBroker):
         # time the last checkpoint was made - used to see which transactions from the transactions log we should actually play back
         ckpt_time = 0
         # only rebuild from checkpoint if the file exists
-        if os.path.isfile("table.ckpt"):
-            f = open("table.ckpt", "r")
+        if os.path.isfile(f"table{self.chain_num}.ckpt"):
+            f = open(f"table{self.chain_num}.ckpt", "r")
             # first line of checkpoint file is timestamp of when checkpoint was made 
             ckpt_time = int(f.readline())
             # read in state of hash table line by line
@@ -111,8 +111,8 @@ class ChainReplicator(StockMarketBroker):
                 self.users[username].cash = cash
                 self.users[username].stocks = stocks
         # once we have rebuild from the checkpoint, attempt to play back the transaction log if it exists
-        if os.path.isfile("table.txn"):
-            f = open("table.txn", "r")
+        if os.path.isfile(f"table{self.chain_num}.txn"):
+            f = open(f"table{self.chain_num}.txn", "r")
             # go line by line through the log
             for line in f.readlines():
                 # format of each entry in the log is as such
@@ -397,11 +397,11 @@ class ChainReplicator(StockMarketBroker):
 
         shadow_ckpt.close()
         # perform atomic update of checkpoint
-        os.rename("table.ckpt.shadow", "table.ckpt")
+        os.rename("table.ckpt.shadow", f"table{self.chain_num}.ckpt")
         # clear out the old transaction log only if we are compressing during normal operation. Otherwise, if we are restarting from a crash, the server will already overwrite the transaction log.
         if self.txn_log != None:
             self.txn_log.close()
-            self.txn_log = open("table.txn", "w")
+            self.txn_log = open(f"table{self.chain_num}.txn", "w")
             
         print_debug("CKPT created.")     
 
