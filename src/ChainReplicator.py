@@ -24,6 +24,7 @@ class ChainReplicator(StockMarketBroker):
         self.chain_num = chain_num
         # create socket
         for i in range(100):
+            print(i)
             # try to bind to port
             try:
                 self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -34,6 +35,7 @@ class ChainReplicator(StockMarketBroker):
             except Exception as e:
                 print(e)
                 print("Error: port in use")
+                self.socket.close()
                 
             if i == 99:
                 print("No open ports")
