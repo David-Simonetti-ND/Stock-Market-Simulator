@@ -512,73 +512,75 @@ class StockMarketBroker:
             self.txn_log = open("table.txn", "w")
             
         print_debug("CKPT created.")
+        
+    def listen(self):
+        while True:
+            # if 1 minute has passed, perform a name server update
+            if (time.time_ns() - self.last_ns_update) >= (60*1000000000):
+                self.ns_update()
+            # use select to return a list of sockets ready for reading
+            # wait up to 5 seconds for an incoming connection
+            readable, _, _ = select.select(list(self.socket_table) + [self.stockmarketsim_sock], [], [], 5)
+            # if no sockets are readable, try again
+            if readable == []:
+                continue
+            # if the master socket is in the readable list, give it priority and accept the new incomming client
+            if self.socket in readable:
+                self.accept_new_connection()
+                readable.remove(self.socket)
+            if self.stockmarketsim_sock in readable:
+                status, data = receive_data(self.stockmarketsim_sock)
+                ## error reading from stock market sim
+                if data is None:
+                    # try to reconnect and go to next loop, since all data was out of date anyways
+                    self.connect_to_simulator()
+                    continue
+                self.latest_stock_info = json.loads(data)
+                readable.remove(self.stockmarketsim_sock)
+            # otherwise we have at least one client connection with data available
+            # handle all pendings reads before performing select again
+            while len(readable) > 0:
+                # check if we should perform a name server update
+                if (time.time_ns() - self.last_ns_update) >= (60*1000000000):
+                    self.ns_update()
+                # randomly pick a client to service
+                conn = random.choice(readable)
+                readable.remove(conn)
+                # process requests from client until client disconnects
+                # read a request, getting status (1 for error on read, 0 for successful reading), and the request
+                status, request = receive_data(conn)
+                if status == 1:
+                    # send back error that occured
+                    error_msg = self.json_resp(False, request)
+                    try:
+                        conn.send(format_message(error_msg))
+                    except Exception:
+                        pass
+                    continue
+                # if connection was broken or closed, go back to waiting for a new connection
+                if not request:
+                    conn.close()
+                    self.socket_table.remove(conn)
+                    continue
 
-def main():
+                # peform the request the client submitted
+                RPC_response = self.perform_request(request)
+                # send response 
+                try:
+                    # if the client disconnects before we try to send, get a new connection
+                    conn.sendall(format_message(RPC_response))
+                except Exception:
+                    continue
+
+
+
+
+
+if __name__ == "__main__":
     # ensure only a port is given
     if len(sys.argv) != 2:
         print("Error: please enter project name as the only argument")
         exit(1)
 
     server = StockMarketBroker(sys.argv[1])
-
-    while True:
-        # if 1 minute has passed, perform a name server update
-        if (time.time_ns() - server.last_ns_update) >= (60*1000000000):
-            server.ns_update()
-        # use select to return a list of sockets ready for reading
-        # wait up to 5 seconds for an incoming connection
-        readable, _, _ = select.select(list(server.socket_table) + [server.stockmarketsim_sock], [], [], 5)
-        # if no sockets are readable, try again
-        if readable == []:
-            continue
-        # if the master socket is in the readable list, give it priority and accept the new incomming client
-        if server.socket in readable:
-            server.accept_new_connection()
-            readable.remove(server.socket)
-        if server.stockmarketsim_sock in readable:
-            status, data = receive_data(server.stockmarketsim_sock)
-            ## error reading from stock market sim
-            if data is None:
-                # try to reconnect and go to next loop, since all data was out of date anyways
-                server.connect_to_simulator()
-                continue
-            server.latest_stock_info = json.loads(data)
-            readable.remove(server.stockmarketsim_sock)
-        # otherwise we have at least one client connection with data available
-        # handle all pendings reads before performing select again
-        while len(readable) > 0:
-            # check if we should perform a name server update
-            if (time.time_ns() - server.last_ns_update) >= (60*1000000000):
-                server.ns_update()
-            # randomly pick a client to service
-            conn = random.choice(readable)
-            readable.remove(conn)
-            # process requests from client until client disconnects
-            # read a request, getting status (1 for error on read, 0 for successful reading), and the request
-            status, request = receive_data(conn)
-            if status == 1:
-                # send back error that occured
-                error_msg = server.json_resp(False, request)
-                try:
-                    conn.send(format_message(error_msg))
-                except Exception:
-                    pass
-                continue
-            # if connection was broken or closed, go back to waiting for a new connection
-            if not request:
-                conn.close()
-                server.socket_table.remove(conn)
-                continue
-
-            # peform the request the client submitted
-            RPC_response = server.perform_request(request)
-            # send response 
-            try:
-                # if the client disconnects before we try to send, get a new connection
-                conn.sendall(format_message(RPC_response))
-            except Exception:
-                continue
-
-
-if __name__ == "__main__":
-    main()
+    server.listen()
