@@ -189,20 +189,17 @@ class StockMarketBroker:
             if (request, conn) not in self.pending_reqs:
                 self.pending_reqs.append((request, conn))
             return None
-        timeout = 1 
-        while True:
-            try:
-                chain_socket.sendall(format_message(request))
-                break
-            except Exception as e:
-                print(f"Unable to send request to database server, retrying in {timeout} seconds")
-                time.sleep(timeout)
-                timeout *= 2
-                chain_socket.close()
-                chain_socket = self.connect_to_server(f"chain-{username_hash % self.num_chains}")
-                continue
-        self.chain_sockets[username_hash % self.num_chains] = chain_socket
-        self.chain_to_index[chain_socket] = (username_hash % self.num_chains)
+        try:
+            chain_socket.sendall(format_message(request))
+        except Exception as e:
+            print(f"Unable to send request to database server, adding to job queue")
+            chain_socket.close()
+            chain_socket = self.connect_to_server(f"chain-{username_hash % self.num_chains}")
+            self.chain_sockets[username_hash % self.num_chains] = chain_socket
+            self.chain_to_index[chain_socket] = (username_hash % self.num_chains)
+            if (request, conn) not in self.pending_reqs:
+                self.pending_reqs.append((request, conn))
+            return None
         return username_hash % self.num_chains
         
     def finalize_request(self, index):
