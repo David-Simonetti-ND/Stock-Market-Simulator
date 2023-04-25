@@ -101,26 +101,20 @@ class StockMarketBroker:
             
         users = {}
         request = {"action": "broker_leaderboard", "latest_stock_info": self.latest_stock_info, "username": "broker", "password": "broker"}
-        timeout = 1
         for i in range(self.num_chains):
             chain_socket = self.chain_sockets[i]
             if i in self.name_to_conn.keys():
                 continue
-            while True:
-                try:
-                    chain_socket.sendall(format_message(request))
-                    status, data = receive_data(chain_socket)
-                except Exception as e:
-                    print(f"Unable to send request to database server, retrying in {timeout} seconds")
-                    time.sleep(timeout)
-                    timeout *= 2
-                    chain_socket.close()
-                    chain_socket = self.connect_to_server(f"chain-{i}")
-                    continue
-                if status == 0 and data != None:
-                    break
-            self.chain_sockets[i] = chain_socket
-            self.chain_to_index[chain_socket] = i
+            try:
+                chain_socket.sendall(format_message(request))
+                status, data = receive_data(chain_socket)
+            except Exception as e:
+                print(f"Unable to send request to database server, attempting to reconnect")
+                chain_socket.close()
+                chain_socket = self.connect_to_server(f"chain-{i}")
+                self.chain_sockets[i] = chain_socket
+                self.chain_to_index[chain_socket] = i
+                continue
             try:
                 users = {**users, **data["Value"]}      
             except:
