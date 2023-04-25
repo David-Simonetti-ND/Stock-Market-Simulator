@@ -454,7 +454,6 @@ class StockMarketBroker:
                 # cash and stock amounts are the rest of the entry
                 cash, stocks = rest[pw_len + 1:].split(" ", 1)
                 cash = float(cash)
-                print(stocks)
                 stocks = json.loads(stocks)
                 # add the entry to memory
                 self.users[username] = StockMarketUser(username, password)
@@ -544,7 +543,7 @@ class StockMarketBroker:
         # iterate over every key value pair currently in the hash table and write it to the checkpoint file
         for username in self.users.keys():
             user = self.users[username]
-            shadow_ckpt.write(f"{len(username)} {username} {len(user.password)} {user.password} {user.cash} {json.dumps(user.stocks)}")
+            shadow_ckpt.write(f"{len(username)} {username} {len(user.password)} {user.password} {user.cash} {json.dumps(user.stocks)}\n")
 
         shadow_ckpt.close()
         # perform atomic update of checkpoint

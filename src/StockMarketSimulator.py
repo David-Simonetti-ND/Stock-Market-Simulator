@@ -35,7 +35,7 @@ class StockMarketSimulator:
         
         ## Set Rates
         # publish every 1/2 second
-        self.publish_rate = .25 * 1e9 / GLOBAL_SPEEDUP
+        self.publish_rate = .1 * 1e9 / GLOBAL_SPEEDUP
         print_debug(f"Publish rate = {self.publish_rate / 1e9} p/sec")
         # actual update every 1/100th a second
         self.update_rate = .01 * 1e9 / GLOBAL_SPEEDUP
@@ -76,7 +76,7 @@ class StockMarketSimulator:
         """
         self.pub_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.pub_port = self.pub_socket.getsockname()[1]
-        self.sub_table = set()
+        self.sub_table = deque()
 
     def _init_ns_socket(self):
         """Initializes name server socket
@@ -110,7 +110,7 @@ class StockMarketSimulator:
             self.broker_connection = conn
             print_debug(f"New Broker {addr} connected.")
         else:
-            self.sub_table.add(((data["hostname"], data["port"]), time.time_ns()))
+            self.sub_table.append(((data["hostname"], data["port"]), time.time_ns()))
             conn.close()
             print_debug(f"New Subscriber connected.")
     
@@ -203,9 +203,13 @@ class StockMarketSimulator:
 
         
         # remove out of date subscribers
-        out_of_date_subs = [sub for sub in self.sub_table if (time.time_ns() - sub[1] > (SUBSCRIBE_TIMEOUT)) ]
-        for sub in out_of_date_subs:
-            self.sub_table.remove(sub)
+        cur_time = time.time_ns()
+        out_of_date_subs = []
+        while self.sub_table:
+            if (cur_time - self.sub_table[0][1]) > SUBSCRIBE_TIMEOUT:
+                out_of_date_subs.append(self.sub_table.popleft())
+            else:
+                break
         if len(out_of_date_subs) != 0:
             print_debug(f"Removed {len(out_of_date_subs)} subs.")
             

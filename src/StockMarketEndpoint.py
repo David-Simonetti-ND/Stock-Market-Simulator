@@ -15,7 +15,7 @@ class StockMarketEndpoint:
         
         # connect to broker & simulator
         self.connect_to_broker()
-        self.subscribe_to_simulator()
+        self.subscribe_to_simulator(resub=False)
         
         # asyncronously recieve updates.
         self.recent_price = {}
@@ -52,7 +52,7 @@ class StockMarketEndpoint:
             time.sleep(timeout)
             timeout *= 2
 
-    def subscribe_to_simulator(self):
+    def subscribe_to_simulator(self, resub = True):
         """Subscribes to the simulator using a TCP
         """
         # keep track of timeouts - exponentially increase by a factor of 2 each failed attempt
@@ -71,7 +71,7 @@ class StockMarketEndpoint:
                     #print_debug(f"Trying to subscribe to {sim}")
                     self.sim_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     self.sim_socket.connect((sim["name"], sim["port"]))
-                    self.sim_socket.sendall(format_message({"hostname": sock_info[0], "port": sock_info[1]}))
+                    self.sim_socket.sendall(format_message({"hostname": sock_info[0], "port": sock_info[1], "resub": resub}))
                     self.sim_socket.close()
                     self.last_sub_time = time.time_ns()
                     # print_debug("Resubscribed to StockMarketSim.")
