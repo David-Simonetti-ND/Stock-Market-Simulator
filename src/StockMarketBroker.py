@@ -60,8 +60,10 @@ class StockMarketBroker:
 
         self.num_chains = num_chains
         self.chain_sockets = {}
+        self.chain_to_index = {}
         for i in range(num_chains):
             self.chain_sockets[i] = self.connect_to_server(f"chain-{i}")
+            self.chain_to_index[self.chain_sockets[i]] = i
 
         self.pending_conns = set()
         self.name_to_conn = {}
@@ -113,11 +115,12 @@ class StockMarketBroker:
                     time.sleep(timeout)
                     timeout *= 2
                     chain_socket.close()
-                    chain_socket = self.connect_to_server("chain-{i}")
+                    chain_socket = self.connect_to_server(f"chain-{i}")
                     continue
                 if status == 0 and data != None:
                     break
             self.chain_sockets[i] = chain_socket
+            self.chain_to_index[chain_socket] = i
             try:
                 users = {**users, **data["Value"]}      
             except:
@@ -199,6 +202,7 @@ class StockMarketBroker:
                 chain_socket = self.connect_to_server(f"chain-{username_hash % self.num_chains}")
                 continue
         self.chain_sockets[username_hash % self.num_chains] = chain_socket
+        self.chain_to_index[chain_socket] = (username_hash % self.num_chains)
         return username_hash % self.num_chains
         
     def finalize_request(self, index):
@@ -273,7 +277,7 @@ def main():
                 continue
             if conn in [server.chain_sockets[x] for x in server.name_to_conn.keys()]:
                 total_requests_handled += 1
-                index = list(server.chain_sockets.values()).index(conn)
+                index = server.chain_to_index[conn]
                 server.finalize_request(index)
                 server.pending_conns.remove(server.name_to_conn[index])
                 del server.name_to_conn[index]

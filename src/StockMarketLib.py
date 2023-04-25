@@ -154,7 +154,7 @@ def lookup_server(broker_name, server_type):
             html = ns_conn.getresponse().read()
             ns_conn.close()
         except Exception as e:
-            print(f"Unable to lookup {broker_name} from catalog server, retrying in {timeout} seconds")
+            print(f"Unable to contact catalog server, retrying in {timeout} seconds")
             time.sleep(timeout)
             timeout *= 2
             continue
@@ -168,7 +168,7 @@ def lookup_server(broker_name, server_type):
                 possible_brokers.append(broker)
         # error case for no servers found - try again
         if possible_brokers == []:        
-            print(f"Unable to lookup {broker_name} from catalog server, retrying in {timeout} seconds")
+            print(f"Unable to lookup {server_type} with project name {broker_name} from catalog server, retrying in {timeout} seconds")
             time.sleep(timeout)
             timeout *= 2
             continue
