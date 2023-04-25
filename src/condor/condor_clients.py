@@ -7,6 +7,7 @@ import random
 procs = []
 def handler(signum, frame):
     global procs
+    subprocess.Popen(["condor_rm", "dsimone2"])
     for proc in procs:
         proc.kill()
     exit(0)
