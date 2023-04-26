@@ -13,9 +13,7 @@ if __name__ == '__main__':
     
     while True:
         # measure buy operations
-        start = time.time_ns()
         sm.buy('TSLA', 10)
-        end = time.time_ns()
         # sell
         sm.sell('TSLA', 10)
         
