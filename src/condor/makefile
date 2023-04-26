@@ -1,2 +1,2 @@
 clean:
-	rm *.ckpt *.txn log.* ./output/* table.ckpt.shadow *.txt
+	rm *.ckpt *.txn log.* ./output/* table.ckpt.shadow *.txt *.log
