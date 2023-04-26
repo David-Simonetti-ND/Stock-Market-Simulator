@@ -351,7 +351,11 @@ class StockMarketBroker:
         
         user_rep = str(user) + f"Net Worth: {worth}"
         user.print_debug("\n" + user_rep)
-        return self.json_resp(True, user_rep)
+        resp = self.json_resp(True, user_rep)
+        resp['Cash'] = user.cash
+        resp['Assets'] = user.stocks
+        resp['Net Worth'] = worth
+        return resp
         
     def _get_leaderboard(self):
         """reports the top 10 users
@@ -360,13 +364,17 @@ class StockMarketBroker:
             self._update_leaderboard(None, None)
         # Top 10
         lstring = "TOP 10\n" + "---------------\n"
+        values = []
         try:
             for i in range(10):
                 lstring += self.leaderboard[i][0].username + ' | ' + str(round(self.leaderboard[i][1], 2))
+                values.append((self.leaderboard[i][0].username, str(round(self.leaderboard[i][1], 2))))
         except:
             pass
         print_debug("\n" + lstring)
-        return self.json_resp(True, lstring)
+        resp = self.json_resp(True, lstring)
+        resp['Data'] = values
+        return resp
     
     ##############
     # Handle Req #

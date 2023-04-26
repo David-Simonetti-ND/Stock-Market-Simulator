@@ -1,4 +1,5 @@
 import socket, http.client, json, time
+import random
 import threading
 from StockMarketLib import format_message, receive_data, lookup_server, SUBSCRIBE_TIMEOUT, print_debug, DEBUG
 
@@ -18,7 +19,7 @@ class StockMarketEndpoint:
         self.subscribe_to_simulator(resub=False)
         
         # asyncronously recieve updates.
-        self.recent_price = {}
+        self.recent_price = {"time": 0}
         simulator_thread = threading.Thread(target=self.async_get_stock_update, daemon=True)
         simulator_thread.start()
     
@@ -115,7 +116,7 @@ class StockMarketEndpoint:
                 time.sleep(timeout)
                 timeout *= 2
                 self.close_connection()
-                self.connect_to_broker(self.broker_name)
+                self.connect_to_broker()
             else:
                 return response
 
@@ -138,7 +139,7 @@ class StockMarketEndpoint:
         Recv is blocking, so other threads can run while blocking.
         """
         while True:
-            if (time.time_ns() - self.last_sub_time) > SUBSCRIBE_TIMEOUT * .9:
+            if (time.time_ns() - self.last_sub_time) > SUBSCRIBE_TIMEOUT * random.uniform(.8, .9):
                 self.subscribe_to_simulator()
             try:
                 self.recent_price = json.loads(self.info_sock.recv(1024))
