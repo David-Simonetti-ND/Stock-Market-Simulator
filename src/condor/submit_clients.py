@@ -16,7 +16,7 @@ signal.signal(signal.SIGINT, handler)
 
 condor_command = '''
 executable     = /scratch365/dsimone2/scratch_conda/bin/python3 
-arguments      = "/scratch365/dsimone2/distsys/Stock-Market-Simulator/src/random_player.py {project_name} {username}" 
+arguments      = "/scratch365/dsimone2/distsys/Stock-Market-Simulator/src/test_random_player.py {project_name} {username}" 
 request_cpus   = 1
 request_memory = 2048
 request_disk   = 4096
