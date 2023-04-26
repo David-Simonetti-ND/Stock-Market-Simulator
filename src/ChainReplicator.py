@@ -311,8 +311,9 @@ class ChainReplicator(StockMarketBroker):
             worth += self.latest_stock_info[ticker] * user.stocks[ticker]
         
         user_rep = str(user) + f"Net Worth: {worth}"
+        resp = {"Str": user_rep, "Net Worth": worth, "Cash": user.cash, "Stocks": user.stocks}
         user.print_debug("\n" + user_rep)
-        return self.json_resp(True, user_rep)
+        return self.json_resp(True, resp)
     
     def calculate_net_worths(self):
         def net_worth(user):
