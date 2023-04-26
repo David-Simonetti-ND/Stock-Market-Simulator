@@ -20,7 +20,7 @@ with open("names.txt", "r") as f:
 chosen_names = random.sample(names, int(sys.argv[2]))
 
 for i in range(int(sys.argv[2])):
-    procs.append(subprocess.Popen(["python3", sys.argv[3], sys.argv[1], chosen_names]))
+    procs.append(subprocess.Popen(["python3", sys.argv[3], sys.argv[1], chosen_names[i]]))
 
 while True:
     time.sleep(1)

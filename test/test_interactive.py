@@ -9,7 +9,7 @@ from StockMarketLib import VALID_TICKERS
 
 
 def main():
-    if len(sys.argv) != 3 or len(sys.argv) != 4:
+    if len(sys.argv) != 3 and len(sys.argv) != 4:
         print("Error: please only enter two arguments which is the project name and your username")
         exit(1)
     
@@ -68,3 +68,6 @@ def main():
         elif inp == 'leaderboard':
             resp = sm.get_leaderboard()
             print(resp)
+
+if __name__ == "__main__":
+    main()

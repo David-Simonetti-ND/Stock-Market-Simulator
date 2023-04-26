@@ -27,7 +27,7 @@ for i in range(int(sys.argv[2])):
     except Exception:
         pass
     os.chdir(str(i))
-    procs.append(subprocess.Popen(["python3", "./Replicator.py", sys.argv[1], f"{i}"]))
+    procs.append(subprocess.Popen(["python3", "../../Replicator.py", sys.argv[1], f"{i}"]))
     os.chdir("..")
 
 while True:
