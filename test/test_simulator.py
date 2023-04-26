@@ -1,5 +1,6 @@
 # Test script to test multiple users collection
-
+import sys
+sys.path.append('../src/')
 import subprocess
 from pathlib import Path
 import sys

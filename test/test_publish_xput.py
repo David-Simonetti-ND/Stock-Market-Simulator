@@ -1,3 +1,5 @@
+import sys
+sys.path.append('../src/')
 import subprocess
 
 NUM_CLIENTS = 5

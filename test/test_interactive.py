@@ -1,3 +1,5 @@
+import sys
+sys.path.append('../src/')
 import sys, time
 import random
 from collections import defaultdict
