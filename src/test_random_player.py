@@ -16,16 +16,12 @@ def main():
     # Authenticate self
     resp = None
     while resp == None:
-        resp = sm.register()
-    
-    # just skip b/c it means this person already connected before
-    if resp['Success'] == False:
-        pass
+        resp = sm.register(registered_ok=True)
     
     # random policy
     c = 0
     while True:
-        #time.sleep(1)
+        time.sleep(1)
         
         action = random.choice(["buy", 'sell'])
         tkr = random.choice(VALID_TICKERS)
@@ -34,27 +30,22 @@ def main():
             while True:
                 resp = sm.buy(tkr, amt)
                 if resp['Success'] != None and resp['Value'] != "User associated with Username does not exist.":
-                    #print(resp['Value'], sm.username)
                     break
                 else:
-                    #print(resp, sm.username)
-                    sm.register()
+                    sm.register(registered_ok=True)
 
         elif action == 'sell':
             while True:
                 resp = sm.sell(tkr, amt)
                 if resp['Success'] != None and resp['Value'] != "User associated with Username does not exist.":
-                    #print(resp['Value'], sm.username)
                     break
                 else:
-                    #print(resp, sm.username)
-                    sm.register()
+                    sm.register(registered_ok=True)
         
-        if False:
-            if c % 10 == 0:
-                print(sm.get_balance(), sm.username)
-            if c % 60 == 0:
-                print(sm.get_leaderboard())
+        if c % 10 == 0:
+            print(sm.get_balance(), sm.username)
+        if c % 60 == 0:
+            print(sm.get_leaderboard())
             
         c+=1    
 if __name__ == "__main__":

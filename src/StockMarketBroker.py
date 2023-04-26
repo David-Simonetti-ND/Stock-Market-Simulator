@@ -21,7 +21,10 @@ class StockMarketBroker:
             num_chains (int): how many chain replication servers will be connected
         """
         
+        ## Project Name
         self.broker_name = broker_name
+        
+        ## Socket connection to accept connections
         # create socket
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # set 60 seconds timeout waiting for a connection, so we can update the name server
@@ -33,10 +36,9 @@ class StockMarketBroker:
         except:
             print("Error: port in use")
             exit(1)
-
         self.port_number = self.socket.getsockname()[1]
         print_debug(f"Listening on port {self.port_number}")
-        
+        # listen
         self.socket.listen()
         # use a set to keep track of all open sockets - master socket is the first socket
         self.socket_table = set([self.socket])
@@ -44,7 +46,7 @@ class StockMarketBroker:
         # for users and the leaderboard
         self.leaderboard = []
         
-        # for stock info
+        ## Stock Info
         self.latest_stock_info = None
 
         # send information to name server
@@ -102,6 +104,7 @@ class StockMarketBroker:
     def _update_leaderboard(self, _, __):
         ''' signaled function call to update the leaderboard.'''
         # snapshot of each ticker's price
+        if self.latest_stock_info is None: return
         prices = {}
         for t in VALID_TICKERS:
             prices[t] = self.latest_stock_info[t]
@@ -218,7 +221,6 @@ class StockMarketBroker:
             pass
         #self.done[self.name_to_conn[index]] = self.done.get(self.name_to_conn[index], 0) + 1
         #print(len(self.done.keys()), [self.done[x] for x in self.done.keys()])
-
 
 def main():
     # ensure only a port is given

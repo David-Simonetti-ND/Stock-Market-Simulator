@@ -9,14 +9,15 @@ VALID_STOCK_NAMES = ["Tesla", "Microsoft", "Apple", "Nvidia", "Amazon"]
 ## global speedup
 GLOBAL_SPEEDUP = 1
 # how long is a minute compared to real life
-MINUTE_SPEEDUP = .1 
+MINUTE_SPEEDUP = 1 
 # how many publishes clients are delayed stock info for
 CLIENT_DELAY = 5
 
 ## Default Timeout for subscribes
-SUBSCRIBE_TIMEOUT = 30 * (10 ** 9)
+SUBSCRIBE_TIMEOUT = 10 * (10 ** 9)
 
-#DEBUG = True
+## DEBUG Mode
+# DEBUG = True
 DEBUG = False
 
 class StockMarketUser:
@@ -179,3 +180,4 @@ def print_debug(*values):
     """prints if debug is true"""
     if DEBUG:
         print("DEBUG:", *values)
+        

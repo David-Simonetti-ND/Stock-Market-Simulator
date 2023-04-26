@@ -4,7 +4,7 @@ import time
 import socket
 import json
 import select
-# import numpy as np
+import numpy as np
 import signal
 import csv
 import sys
@@ -35,20 +35,23 @@ class StockMarketSimulator:
         
         ## Set Rates
         # publish every 1/2 second
-        self.publish_rate = .1 * 1e9 / GLOBAL_SPEEDUP
+        self.publish_rate = .25 * 1e9 / GLOBAL_SPEEDUP
         print_debug(f"Publish rate = {self.publish_rate / 1e9} p/sec")
         # actual update every 1/100th a second
-        self.update_rate = .01 * 1e9 / GLOBAL_SPEEDUP
+        self.update_rate = .05 * 1e9 / GLOBAL_SPEEDUP
         print_debug(f"Update rate = {self.update_rate / 1e9} u/sec")
         # minute (no )
         self.minute_rate = MINUTE_SPEEDUP * 60 * 1e9 / GLOBAL_SPEEDUP # change this for faster volatility
         print_debug(f"Minute rate = {self.minute_rate / 1e9} seconds/minute")
         
-        self.simulate_next_minute()
+        self._simulate_next_minute(first=True)
         
         ## save data to artificially delay it.
         self.delayed_data = deque()
-        if TEST: self.prev_pub_time = 0
+        
+        ## Testing features
+        if TEST: 
+            self.prev_pub_time = 0
 
         ## Open a socket to accept new client subscriptions
         self.recv_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -77,8 +80,6 @@ class StockMarketSimulator:
         self.pub_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.pub_port = self.pub_socket.getsockname()[1]
         self.sub_table = deque()
-        self.sub_set = set()
-        
 
     def _init_ns_socket(self):
         """Initializes name server socket
@@ -113,7 +114,6 @@ class StockMarketSimulator:
             print_debug(f"New Broker {addr} connected.")
         else:
             self.sub_table.append(((data["hostname"], data["port"]), time.time_ns()))
-            self.sub_set.add((data["hostname"], data["port"]))
             conn.close()
             print_debug(f"New Subscriber connected.")
     
@@ -127,8 +127,13 @@ class StockMarketSimulator:
         # start listening
         self.recv_socket.listen()
         prev_update_time = time.time_ns()
-        prev_sub_time = prev_update_time
-        prev_min_time = prev_update_time
+        prev_pub_time = prev_update_time
+
+        # threads for updateing
+        update_thread = threading.Thread(target=self._simulate_tick, daemon=True)
+        update_thread.start()
+        minute_thread = threading.Thread(target=self._simulate_next_minute, daemon=True)
+        minute_thread.start()
         self.tick = 0
         while True:
             
@@ -138,50 +143,37 @@ class StockMarketSimulator:
                 self.accept_new_connection()
             
             cur_time = time.time_ns()
-            
-            # update the minute to use for simulation
-            if (cur_time - prev_min_time) > self.minute_rate:
-                prev_min_time = cur_time
-                self.simulate_next_minute()
-                self.tick = 0
-                
-            # try to update
-            if (cur_time - prev_update_time) > self.update_rate:
-                prev_update_time = cur_time
-                self.tick += 1
-                #self.simulate_one_tick(tick)
 
             # don't publish every
-            if (cur_time - prev_sub_time) > self.publish_rate:
+            if (cur_time - prev_pub_time) > self.publish_rate:
                 self.publish_stock_data()
-                prev_sub_time = cur_time
+                prev_pub_time = cur_time
     
     ###############
     # Sim Backend #
     ###############
     
-    # def simulate_next_minute(self):
-    #     '''Simulates the next minute's data by using a random walk over a minute bar'''
-    #     self.next_minute = {}
-    #     x = np.arange(0, int(self.minute_rate//self.update_rate + 1) , 1)
-    #     for t in self.tickers:
-    #         min = self.stock_prices[t][self.minute]
-    #         print(min)
-    #         # compute random motions
-    #         self.next_minute[t] = (((float(min[5]) - float(min[2])) / (self.minute_rate/self.update_rate)) * x + float(min[2]) + np.random.normal(0, np.random.uniform(.1, 1.9) * np.abs(float(min[3]) - float(min[4])) + .01, len(x))).round(2)
-    #     self.minute += 1
-
-    def simulate_next_minute(self):
+    def _simulate_tick(self):
+        """Simulates next tick"""
+        while True:
+            self.tick += 1
+            time.sleep(self.update_rate/1e9)
+        
+    def _simulate_next_minute(self, first = False):
         '''Simulates the next minute's data by using a random walk over a minute bar'''
         self.next_minute = {}
-        x = [i for i in range(int(self.minute_rate//self.update_rate + 1))]
-        for t in self.tickers:
-            min = self.stock_prices[t][self.minute]
-            # compute linear step
-            tmp = [((float(min[5]) - float(min[2])) / (self.minute_rate/self.update_rate)) * i + float(min[2]) for i in x]
-            # add random noise
-            self.next_minute[t] = [round(i + random.gauss(0, random.uniform(.1, 1.9) * abs(float(min[3]) - float(min[4])) + .01), 2)  for i in tmp]
-        self.minute += 1
+        while True:
+            x = np.arange(0, self.minute_rate/self.update_rate , 1)
+            for t in self.tickers:
+                min = self.stock_prices[t][self.minute]
+                # compute random motions
+                self.next_minute[t] = (((float(min[5]) - float(min[2])) / (self.minute_rate/self.update_rate)) * x + float(min[2]) + np.random.normal(0, np.random.uniform(.1, 1.9) * np.abs(float(min[3]) - float(min[4])) + .01, len(x))).round(2)
+            self.minute += 1
+            self.tick = 0
+            if first:
+                break
+            time.sleep(self.minute_rate/1e9)
+            
 
     
     ##################
@@ -228,13 +220,11 @@ class StockMarketSimulator:
                 break
         if len(out_of_date_subs) != 0:
             print_debug(f"Removed {len(out_of_date_subs)} subs.")
-            
         # send data to subscribed sockets
         print_debug(f"Publishing to {len(self.sub_table)} clients...", update)
         if TEST:
             start = time.time_ns()
 
-        
         for sub_sock in self.sub_table:
             self.pub_socket.sendto(message.encode("utf-8"), sub_sock[0])
             
