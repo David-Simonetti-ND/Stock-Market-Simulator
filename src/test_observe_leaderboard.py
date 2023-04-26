@@ -8,7 +8,7 @@ from collections import defaultdict
 if __name__ == '__main__':
     
     # init stock market endpoint
-    sm = StockMarketEndpoint(name=sys.argv[1], username=sys.argv[2], password=sys.argv[2])
+    sm = StockMarketEndpoint(name=sys.argv[1], username="lb_obs", password="lb_obs")
     sm.register(registered_ok=True)
     
     file = "leaderboard.txt"
