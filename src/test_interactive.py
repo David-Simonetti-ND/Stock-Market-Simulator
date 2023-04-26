@@ -32,11 +32,14 @@ def main():
         if inp == "menu":
             print("""Options:
                   menu
+                  prices
                   buy
                   sell
                   balance
                   leaderboard
                   """)
+        elif inp == 'prices':
+            print(sm.get_stock_update())
         elif inp == "buy":
             ticker = input("Ticker: ")
             amt = int(input("Amount: "))
