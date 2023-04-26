@@ -62,13 +62,14 @@ class StockMarketBroker:
         self.num_chains = num_chains
         self.chain_sockets = {}
         self.chain_to_index = {}
+        self.pending_reqs = {}
         for i in range(num_chains):
             self.chain_sockets[i] = self.connect_to_server(f"chain-{i}")
             self.chain_to_index[self.chain_sockets[i]] = i
+            self.pending_reqs[i] = deque()
 
         self.pending_conns = set()
         self.name_to_conn = {}
-        self.pending_reqs = {}
         self.done = {}
 
     def connect_to_server(self, server_type):
