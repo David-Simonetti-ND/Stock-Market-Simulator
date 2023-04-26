@@ -7,70 +7,21 @@ import select
 import random
 import http.client
 import signal
-from StockMarketLib import format_message, receive_data, lookup_server, VALID_TICKERS, print_debug
-
-class StockMarketUser:
-    """Defines a User for the broker to register
-    """
-    def __init__(self, username, password):
-        self.username = username
-        self.password = password
-        # init w/ 100k
-        self.cash = 100000
-        # init stocks
-        self.stocks = {ticker: 0 for ticker in VALID_TICKERS}
-
-    def can_purchase(self, amount, price):
-        """Checks that you have enough money to purchase.
-        """
-        return (self.cash - (amount * price) >= 0)
-
-    def can_sell(self, amount, ticker):
-        """Checks that you have enough of a certain stock to sell
-        """
-        return (self.stocks[ticker] >= amount)
-    
-    def purchase(self, ticker, amount, price):
-        """Purchase a stock
-        """
-        self.cash -= amount * price
-        self.stocks[ticker] += amount
-    
-    def sell(self, ticker, amount, price):
-        """Sell your stocks
-        """
-        self.cash += amount * price
-        self.stocks[ticker] -= amount
-        
-    def print_debug(self, *values):
-        print_debug(self.username, "--", *values)
-
-    def __repr__(self):
-        """Representation of a user's account 
-        """
-        user_str = f"User: {self.username:.10}\n"
-        user_str += "-" * 16 + '\n'
-        user_str += f"Cash | {self.cash:.2f}\n"
-        for ticker, amount in self.stocks.items():
-            user_str += f"{ticker} | {amount}\n"
-            user_str += "-" * 16 + '\n'
-        return user_str
-
+from collections import deque 
+from StockMarketLib import format_message, receive_data, lookup_server, print_debug, VALID_TICKERS, StockMarketUser
 
 class StockMarketBroker:
-    def __init__(self, broker_name):
+    def __init__(self, broker_name, num_chains):
         """Initializes the stock market broker, accepting connections from a randomly selected port.
         
         Also opens a UDP connection to the name server
 
         Args:
             broker_Name (str): name of the broker
+            num_chains (int): how many chain replication servers will be connected
         """
         
-        ## Project Name
         self.broker_name = broker_name
-        
-        ## Socket connection to accept connections
         # create socket
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # set 60 seconds timeout waiting for a connection, so we can update the name server
@@ -82,281 +33,102 @@ class StockMarketBroker:
         except:
             print("Error: port in use")
             exit(1)
+
         self.port_number = self.socket.getsockname()[1]
         print_debug(f"Listening on port {self.port_number}")
-        # listen
+        
         self.socket.listen()
         # use a set to keep track of all open sockets - master socket is the first socket
         self.socket_table = set([self.socket])
         
-        ## Trackers for users and leaderboards
-        self.num_users = 0
-        self.users = {}
+        # for users and the leaderboard
         self.leaderboard = []
         
-        ## Stock Info
+        # for stock info
         self.latest_stock_info = None
 
-        ## Persistence 
-        # see if we need to perform a rebuild after a crash
-        # if there is a checkpoint file or a transaction log, we will reload in stock market data from those files
-        # set the txn_log to none to indicate that we are rebuilding from crash
-        self.txn_log = None
-        self.rebuild_server()
-        # once the server is rebuilt, there is two cases
-        # start new transaction log
-        self.txn_log = open("table.txn", "w")
-        self.txn_count = 0
-
-        ## NS socket
+        # send information to name server
         self.ns_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.ns_socket.connect(("catalog.cse.nd.edu", 9097))
+        self.ns_update({"type" : "stockmarketbroker", "owner" : "dsimone2", "port" : self.port_number, "project" : self.broker_name})
 
-        ## Connect to simulator
-        self.stockmarketsim_sock = None
-        self.connect_to_simulator()
+        # connect to simulator
+        self.stockmarketsim_sock = self.connect_to_server("stockmarketsim")
         
-        ## Update the leaderboard & ns every minute 
+        # update the leaderboard every minute 
         signal.signal(signal.SIGALRM, self._update)
-        signal.setitimer(signal.ITIMER_REAL,.1, 60) # now and every 60 seconds after
-    
-    ##################
-    # Socket Methods #
-    ##################
-      
-    def connect_to_simulator(self):
-        """ Connects to simulator
-        """
-        if self.stockmarketsim_sock is not None:
-            self.stockmarketsim_sock.close()
-        
+        signal.setitimer(signal.ITIMER_REAL,60, 60) # now and every 60 seconds after
+
+        self.num_chains = num_chains
+        self.chain_sockets = {}
+        self.chain_to_index = {}
+        self.pending_reqs = {}
+        for i in range(num_chains):
+            self.chain_sockets[i] = self.connect_to_server(f"chain-{i}")
+            self.chain_to_index[self.chain_sockets[i]] = i
+            self.pending_reqs[i] = deque()
+
+        self.pending_conns = set()
+        self.name_to_conn = {}
+        self.done = {}
+
+    def connect_to_server(self, server_type):
+        """ Connect to given server type on socket """
         timeout = 1
         while True:
-            possible_simulators = lookup_server(self.broker_name, "stockmarketsim")
-            for simulator in possible_simulators:
+            possible_servers = lookup_server(self.broker_name, server_type) #"stockmarketsim")
+            for server in possible_servers:
                 try:
-                    #print_debug(f"Trying to connect to {simulator}")
-                    self.stockmarketsim_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    self.stockmarketsim_sock.connect((simulator["name"], simulator["port"]))
-                    self.stockmarketsim_sock.sendall(format_message({"type": "broker"}))
-                    print_debug("Connected to StockMarketSim")
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock.settimeout(5)
+                    sock.connect((server["name"], server["port"]))
+                    sock.sendall(format_message({"type": "broker"}))
+                    print_debug(f"Connected to server {server_type}")
                     break
                 except Exception:
-                    self.stockmarketsim_sock = None
-            if self.stockmarketsim_sock != None:
+                    sock = None
+            if sock != None:
                 break
-            print(f"Unable to connect to simulator, retrying in {timeout} seconds")
+            print(f"Unable to connect to server {server_type}, retrying in {timeout} seconds")
             time.sleep(timeout)
-            timeout *= 2    
+            timeout *= 2 
+        return sock
         
-    def accept_new_connection(self):
-        """Accepts a new connection and adds it to the socket table.
-        """
-        conn, addr = self.socket.accept()
-        conn.settimeout(60)
-        self.socket_table.add(conn)
-        
-    ##################
-    # Signal Updates #
-    ##################
-    
-    def _update(self, _, __):
-        """ Update Leaderboard and Name server 
-        """
+    def _update(self):
+        self.ns_update({"type" : "stockmarketbroker", "owner" : "dsimone2", "port" : self.port_number, "project" : self.broker_name})
         self._update_leaderboard()
-        self._update_ns()
-        
-    def _update_ns(self):
-        """Updates the name server with the current state
-        """
-        # create information message  
-        message = json.dumps({"type" : "stockmarketbroker",
-                              "owner" : "dsimone2",
-                              "port" : self.port_number,
-                              "project" : self.broker_name})
-        # send info to name server
-        self.ns_socket.sendall(message.encode("utf-8"))
-        print_debug("Name Server Updated.")
-    
-    def _update_leaderboard(self):
+
+
+    def _update_leaderboard(self, _, __):
         ''' signaled function call to update the leaderboard.'''
         # snapshot of each ticker's price
-        if self.latest_stock_info is None: return
         prices = {}
         for t in VALID_TICKERS:
             prices[t] = self.latest_stock_info[t]
             
-            
-        def net_worth(user):
-            nw = user.cash
-            for t in VALID_TICKERS:
-                nw += user.stocks[t] * prices[t]
-            return nw
-        
-        users = list(self.users.values())
-        nw = [net_worth(u) for u in users]
-        
-        self.leaderboard = sorted(list(zip(users, nw)), key = lambda x: x[1], reverse=True)
+        users = {}
+        request = {"action": "broker_leaderboard", "latest_stock_info": self.latest_stock_info, "username": "broker", "password": "broker"}
+        for i in range(self.num_chains):
+            chain_socket = self.chain_sockets[i]
+            if i in self.name_to_conn.keys():
+                continue
+            try:
+                chain_socket.sendall(format_message(request))
+                status, data = receive_data(chain_socket)
+            except Exception as e:
+                print(f"Unable to send request to database server, attempting to reconnect")
+                chain_socket.close()
+                chain_socket = self.connect_to_server(f"chain-{i}")
+                self.chain_sockets[i] = chain_socket
+                self.chain_to_index[chain_socket] = i
+                continue
+            try:
+                users = {**users, **data["Value"]}      
+            except:
+                pass
+        self.leaderboard = sorted(list([ (username, users[username]) for username in users.keys()]), key = lambda x: x[1], reverse=True)
         print_debug("Leaderboard Updated.")
-        
 
-    
-    ###############
-    # API Backend #
-    ###############
-    
-    def json_resp(self, success, value):
-        """Json format
-        """
-        return {"Success": success, "Value": value}        
-    
-    def _register_user(self, username, password):
-        """Registers Users if they are not registered yet
-        """
-        # check its not already taken
-        if username in self.users: 
-            err = f"Username {username} is already in use."
-            print_debug(err)
-            return self.json_resp(False, err)
-        self.write_txn(f"{time.time_ns()} REGISTER {len(username)} {username} {len(password)} {password}\n")
-        self.users[username] = StockMarketUser(username, password)
-        print_debug(f"User {username} was registered.")
-        return self.json_resp(True, None)
-    
-    def _authenticate(self, username, password):
-        """authenticates and retrieves the associated user
-        """
-        if username not in self.users:
-            err =  "User associated with Username does not exist."
-            print_debug(err)
-            return self.json_resp(False, err)
-        else:
-            user = self.users[username]
-            # check password
-            if user.password == password:
-                print_debug(f"User {username} was authenticated.")
-                return self.json_resp(True, user)
-            else:
-                err = f"Password for {username} is incorrect"
-                print_debug(err)
-                return self.json_resp(False, err)
-            
-    def _user_buy(self, user: StockMarketUser, request):
-        """Purchase a stock
-        """
-        # check valid ticker to buy
-        ticker = request.get("ticker", None)
-        if ticker not in VALID_TICKERS or ticker is None:
-            err = f"Ticker {ticker} is not valid."
-            user.print_debug(err)
-            return self.json_resp(False, f"Ticker {ticker} is not valid.")
-        
-        # check amount to purchase
-        amount = request.get("amount", None)
-        if amount is None:
-            err = "Amount to purchase was not specified"
-            user.print_debug(err)
-            return self.json_resp(False, "Amount to purchase was not specified")
-        else:
-            try: 
-                amount = int(amount)
-            except Exception as e:
-                err = f"Amount must be an integer value: {e}"
-                user.print_debug(err)
-                return self.json_resp(False, err)
-            if amount < 0:
-                err = f"Amount must be a positive value >0."
-                user.print_debug(err)
-                return self.json_resp(False, err)
-            elif amount == 0:
-                # automatic success
-                succ = f"Purchased 0 shares of {ticker}."
-                user.print_debug(succ)
-                return self.json_resp(True, succ )
-        
-        # snapshot buy price
-        buy_price = self.latest_stock_info[ticker]
-        
-        # can purchase
-        if user.can_purchase(amount, buy_price):
-            self.write_txn(f"{time.time_ns()} BUY {len(user.username)} {user.username} {ticker} {amount} {buy_price}\n")
-            user.purchase(ticker, amount, buy_price)
-            succ = f"Purchased {amount} shares of {ticker} at {buy_price}"
-            user.print_debug(succ)
-            return self.json_resp(True, succ)
-        # insufficient funds
-        else:
-            err = f"Insufficient funds to purchase {amount} shares of {ticker} at {buy_price}"
-            user.print_debug(err)
-            return self.json_resp(False, err)
-        
-        
-    def _user_sell(self, user: StockMarketUser, request):
-        """Sell stocks
-        """
-        # check valid ticker to buy
-        ticker = request.get("ticker", None)
-        if ticker not in VALID_TICKERS or ticker is None:
-            err =  f"Ticker {ticker} is not valid."
-            user.print_debug(err)
-            return self.json_resp(False, err)
-        
-        # check amount to purchase
-        amount = request.get("amount", None)
-        if amount is None:
-            err = "Amount to sell was not specified"
-            user.print_debug(err)
-            return self.json_resp(False, err)
-        else:
-            try: 
-                amount = int(amount)
-            except Exception as e:
-                err = f"Amount must be an integer value: {e}"
-                user.print_debug(err)
-                return self.json_resp(False, err)
-            if amount < 0:
-                err = f"Amount must be a positive value >0."
-                user.print_debug(err)
-                return self.json_resp(False, err)
-            elif amount == 0:
-                # automatic success
-                succ = f"Sold 0 shares of {ticker}."
-                user.print_debug(succ)
-                return self.json_resp(True, succ)
-            
-        # snapshot sell price
-        sell_price = self.latest_stock_info[ticker]
-        
-        # can sell
-        if user.can_sell(amount, ticker):
-            self.write_txn(f"{time.time_ns()} SELL {len(user.username)} {user.username} {ticker} {amount} {sell_price}\n")
-            user.sell(ticker, amount, sell_price)
-            succ = f"Sold {amount} shares of {ticker} at {sell_price}"
-            user.print_debug(succ)
-            return self.json_resp(True, succ)
-        # insufficient shares
-        else:
-            err = f"Insufficient owned shares to sell {amount} shares of {ticker} at {sell_price}"
-            user.print_debug(err)
-            return self.json_resp(False, err)
-        
-        
-    def _get_user_balance(self, user: StockMarketUser):
-        """Gets a user's balance
-        """
-        # net worth
-        worth = user.cash
-        for ticker in VALID_TICKERS:
-            worth += self.latest_stock_info[ticker] * user.stocks[ticker]
-        
-        user_rep = str(user) + f"Net Worth: {worth}"
-        user.print_debug("\n" + user_rep)
-        resp = self.json_resp(True, user_rep)
-        resp['Cash'] = user.cash
-        resp['Assets'] = user.stocks
-        resp['Net Worth'] = worth
-        return resp
-        
     def _get_leaderboard(self):
         """reports the top 10 users
         """
@@ -364,269 +136,183 @@ class StockMarketBroker:
             self._update_leaderboard(None, None)
         # Top 10
         lstring = "TOP 10\n" + "---------------\n"
-        values = []
         try:
             for i in range(10):
-                lstring += self.leaderboard[i][0].username + ' | ' + str(round(self.leaderboard[i][1], 2))
-                values.append((self.leaderboard[i][0].username, str(round(self.leaderboard[i][1], 2))))
+                lstring += self.leaderboard[i][0] + ' | ' + str(round(self.leaderboard[i][1], 2)) + "\n"
         except:
             pass
         print_debug("\n" + lstring)
-        resp = self.json_resp(True, lstring)
-        resp['Data'] = values
-        return resp
+        return self.json_resp(True, lstring)
+        
     
-    ##############
-    # Handle Req #
-    ##############
-        
-    def perform_request(self, request):
-        """Redirect requests from a client to appropriate function.
-
-        Args:
-            request (_type_): _description_
-
-        Returns:
-            _type_: _description_
+    def accept_new_connection(self):
+        """Accepts a new connection and adds it to the socket table.
         """
-        # get action
-        action = request.get("action", None)
-        if action is None: return self.json_resp(False, "Action was not provided")
-        
-        ## Authenticate or Register
-        
-        # get username & password
-        username = request.get("username", None)
-        if username is None: return self.json_resp(False, "Username not provided.")
-        password = request.get("password", None)
-        if password is None: return self.json_resp(False, "Password not provided")
+        conn, addr = self.socket.accept()
+        conn.settimeout(60)
+        self.socket_table.add(conn)
 
-        # register the user
-        if action == 'register':
-            return self._register_user(username, password)
-        # autheticate using password
-        else:
-            result = self._authenticate(username, password)
-            # if authentication failed return result
-            if result['Success'] == False:
-                return result
-            # if successful, get the user
-            else:
-                user = result['Value']
-            
+    def ns_update(self, message):
+        """Updates the name server with the current state
+        """
+        # send info to name server
+        self.ns_socket.sendall(json.dumps(message).encode("utf-8"))
+        print_debug("Name Server Updated.")
+        # keep track of last name server update
+        self.last_ns_update = time.time_ns()
 
-        # switch statement to handle different request action
-        if action == "buy":
-            return self._user_buy(user, request)
-        elif action == "sell":
-            return self._user_sell(user, request)
-        elif action == 'balance':
-            return self._get_user_balance(user)
-        elif action == 'leaderboard':
+    def hash(self, string):
+        if not isinstance(string, str):
+            raise TypeError("Key must be a string")
+        hash = 0
+        # loop over each character in the string
+        for character in string:
+            # add the ascii value of that character
+            hash += ord(character)
+        # return the integer hash of the string
+        return hash % 41
+    
+    def json_resp(self, success, value):
+        return {"Success": success, "Value": value}   
+    
+    def start_request(self, request, conn):
+        if request.get("username", None) == None:
+            return self.json_resp(False, "Username required to perform an action")
+        if request.get("action", None) == "leaderboard":
+            request["latest_stock_info"] = self.latest_stock_info
             return self._get_leaderboard()
+        # peform the request the client submitted
+        # add current stock info to request
+        request["latest_stock_info"] = self.latest_stock_info
+        username_hash = self.hash(request["username"])
+        chain_num = (username_hash % self.num_chains)
+        chain_socket = self.chain_sockets[chain_num]
+        if chain_num in self.name_to_conn.keys():
+            if (request, conn) not in self.pending_reqs[chain_num]:
+                self.pending_reqs[chain_num].append((request, conn))
+            return None
+        try:
+            chain_socket.sendall(format_message(request))
+        except Exception as e:
+            print(f"Unable to send request to database server, adding to job queue")
+            chain_socket.close()
+            chain_socket = self.connect_to_server(f"chain-{username_hash % self.num_chains}")
+            self.chain_sockets[chain_num] = chain_socket
+            self.chain_to_index[chain_socket] = (chain_num)
+            if (request, conn) not in self.pending_reqs[chain_num]:
+                self.pending_reqs[chain_num].append((request, conn))
+            return None
+        return username_hash % self.num_chains
+        
+    def finalize_request(self, index):
+        status, data = receive_data(self.chain_sockets[index])
+        if status == 0 and data:
+            response = data
         else:
-            # handle case for invalid action specified
-            return self.json_resp(False, f"{action} is an invalid action.")
+            response = self.json_resp(False, "The database server has crashed")
+        # send response 
+        try:
+            # if the client disconnects before we try to send, get a new connection
+            self.name_to_conn[index].sendall(format_message(response))
+        except Exception as e:
+            pass
+        #self.done[self.name_to_conn[index]] = self.done.get(self.name_to_conn[index], 0) + 1
+        #print(len(self.done.keys()), [self.done[x] for x in self.done.keys()])
 
-    #######################
-    # Persistence Methods #
-    #######################
-    
-    
-    def rebuild_server(self):
-        """Rebuilds the server from the txn log and ckpt
-        """
-        # time the last checkpoint was made - used to see which transactions from the transactions log we should actually play back
-        ckpt_time = 0
-        # only rebuild from checkpoint if the file exists
-        if os.path.isfile("table.ckpt"):
-            f = open("table.ckpt", "r")
-            # first line of checkpoint file is timestamp of when checkpoint was made 
-            ckpt_time = int(f.readline())
-            # read in state of hash table line by line
-            for line in f.readlines():
-                # the length of the username is seperated from the rest of the entry by the first space in the line
-                username_len, rest = line.strip("\n").split(" ", 1)
-                # convert to int
-                username_len = int(username_len)
-                # read in the key as that many characters
-                username = rest[:username_len]
 
-                # same for pw
-                pw_len, rest = rest[username_len + 1:].split(" ", 1)
-                # convert to int
-                pw_len = int(pw_len)
-                # read in the key as that many characters
-                password = rest[:pw_len]
+def main():
+    # ensure only a port is given
+    if len(sys.argv) != 3:
+        print("Error: please enter project name and number of chain servers as the arguments")
+        exit(1)
 
-                # cash and stock amounts are the rest of the entry
-                cash, stocks = rest[pw_len + 1:].split(" ", 1)
-                cash = float(cash)
-                stocks = json.loads(stocks)
-                # add the entry to memory
-                self.users[username] = StockMarketUser(username, password)
-                self.users[username].cash = cash
-                self.users[username].stocks = stocks
-        # once we have rebuild from the checkpoint, attempt to play back the transaction log if it exists
-        if os.path.isfile("table.txn"):
-            f = open("table.txn", "r")
-            # go line by line through the log
-            for line in f.readlines():
-                # format of each entry in the log is as such
-                # TRANSACTION_LENGTH TIMESTAMP OPERATION USERNAME_LEN USERNAME TICKER AMOUNT PRICE
-                # transaction_length is the total size of the transaction, to ensure no partial transactions get read
-                # timestamp is the time in ns when the operation happened
-                # OPERATION is either buy or sell
-                # USERNAME_LEN is the length of USERNAME
-                # TICKER, AMOUNT, and PRICE detail the contents of the transaction
-                # each item is delimited by a space
+    try:
+        num_chains = int(sys.argv[2])
+    except Exception:
+        print("Error: number of chain servers must be an integer")
+        exit(1)
 
-                # read total transaction length and make sure it lines up
-                total_length, rest = line.strip("\n").split(" ", 1)
-                if len(rest) != int(total_length):
-                    # otherwise, if we encounter a half completed transaction we just skip it
-                    continue
-                # get the timestamp from an entry - delimited by first space
-                time, rest = rest.strip("\n").split(" ", 1)
-                time = int(time)
-                # we only replay this operation if it occured AFTER the latest checkpoint
-                if time > ckpt_time:
-                    # read the operation from the entry - delimited by second space
-                    operation, rest = rest.split(" ", 1)
-                    # if its an insert
-                    if operation == "BUY":
-                        # get the key length, which is delimited by the third space
-                        username_len, rest = rest.split(" ", 1)
-                        username_len = int(username_len)
-                        # get the key and then the value is the rest of the entry
-                        username = rest[:username_len]
-                        ticker, amount, price = rest[username_len + 1:].split(" ")
-                        # perform operation
-                        self.users[username].purchase(ticker, float(amount), float(price))
-                    elif operation == "SELL":
-                        # get the key length, which is delimited by the third space
-                        username_len, rest = rest.split(" ", 1)
-                        username_len = int(username_len)
-                        # get the key and then the value is the rest of the entry
-                        username = rest[:username_len]
-                        ticker, amount, price = rest[username_len + 1:].split(" ")
-                        # perform operation
-                        self.users[username].sell(ticker, float(amount), float(price))
-                    elif operation == "REGISTER":
-                        username_len, rest = rest.split(" ", 1)
-                        username_len = int(username_len)
-                        # get the key and then the value is the rest of the entry
-                        username = rest[:username_len]
-                    
-                        pw_len, rest = rest[username_len + 1:].split(" ", 1)
-                        pw_len = int(pw_len)
-                        # get the key and then the value is the rest of the entry
-                        password = rest[:pw_len]
-                        self._register_user(username, password)
-            # once we are done replaying all transactions, create a new checkpoint so we can delete the old transaction log
-            self.create_checkpoint()
-            
-    def write_txn(self, message):
-        """ takes in the transaction message and writes it to the log
-        """
-        if self.txn_log == None:
-            return
-        # write transaction message to log
-        # prepend length of transaction so we know if we had an incomplete write
-        self.txn_log.write(f"{len(message) - 1} {message}")
-        # flush and fsync to send data directly to disk
-        self.txn_log.flush()
-        os.fsync(self.txn_log)
-        # another successful transaction
-        self.txn_count += 1
-        print_debug("TXN LOG written.")
-
-    def create_checkpoint(self):
-        """Creates a ckpt
-        """
-        # open shadow checkpoint file to begin checkpointing
-        shadow_ckpt = open("table.ckpt.shadow", "w")
-        # write the current time as a header 
-        shadow_ckpt.write(f"{time.time_ns()}\n")
-        # iterate over every key value pair currently in the hash table and write it to the checkpoint file
-        for username in self.users.keys():
-            user = self.users[username]
-            shadow_ckpt.write(f"{len(username)} {username} {len(user.password)} {user.password} {user.cash} {json.dumps(user.stocks)}\n")
-
-        shadow_ckpt.close()
-        # perform atomic update of checkpoint
-        os.rename("table.ckpt.shadow", "table.ckpt")
-        # clear out the old transaction log only if we are compressing during normal operation. Otherwise, if we are restarting from a crash, the server will already overwrite the transaction log.
-        if self.txn_log != None:
-            self.txn_log.close()
-            self.txn_log = open("table.txn", "w")
-            
-        print_debug("CKPT created.")
-    
-    ####################
-    # Main Listen Loop #
-    ####################
-    
-    def listen(self):
-        while True:
-            # use select to return a list of sockets ready for reading
-            # wait up to 5 seconds for an incoming connection
-            readable, _, _ = select.select(list(self.socket_table) + [self.stockmarketsim_sock], [], [], 5)
-            # if no sockets are readable, try again
-            if readable == []:
+    server = StockMarketBroker(sys.argv[1], num_chains)
+    total_requests_handled = 0
+    start_time = -1
+    while True:
+        # use select to return a list of sockets ready for reading
+        # wait up to 5 seconds for an incoming connection
+        readable, _, _ = select.select(list(server.socket_table) + [server.stockmarketsim_sock] + list([server.chain_sockets[x] for x in server.name_to_conn.keys()]), [], [], 5)
+        # if no sockets are readable, try again
+        if readable == []:
+            continue
+        # if the master socket is in the readable list, give it priority and accept the new incomming client
+        if server.socket in readable:
+            server.accept_new_connection()
+            readable.remove(server.socket)
+        if server.stockmarketsim_sock in readable:
+            status, data = receive_data(server.stockmarketsim_sock)
+            ## error reading from stock market sim
+            if data is None or status == 2:
+                # try to reconnect and go to next loop, since all data was out of date anyways
+                server.stockmarketsim_sock = server.connect_to_server("stockmarketsim")
                 continue
-            # if the master socket is in the readable list, give it priority and accept the new incomming client
-            if self.socket in readable:
-                self.accept_new_connection()
-                readable.remove(self.socket)
-            if self.stockmarketsim_sock in readable:
-                status, data = receive_data(self.stockmarketsim_sock)
-                ## error reading from stock market sim
-                if data is None or status == 2:
-                    # try to reconnect and go to next loop, since all data was out of date anyways
-                    self.connect_to_simulator()
-                    continue
-                
-                self.latest_stock_info = json.loads(data)
-                readable.remove(self.stockmarketsim_sock)
-            # otherwise we have at least one client connection with data available
-            # handle all pendings reads before performing select again
-            while len(readable) > 0:
-                # randomly pick a client to service
-                conn = random.choice(readable)
-                readable.remove(conn)
-                # process requests from client until client disconnects
-                # read a request, getting status (1 for error on read, 0 for successful reading), and the request
-                status, request = receive_data(conn)
-                if status == 1:
-                    # send back error that occured
-                    error_msg = self.json_resp(False, request)
-                    try:
-                        conn.send(format_message(error_msg))
-                    except Exception:
-                        pass
-                    continue
-                # if connection was broken or closed, go back to waiting for a new connection
-                if not request:
-                    conn.close()
-                    self.socket_table.remove(conn)
-                    continue
-
-                # peform the request the client submitted
-                RPC_response = self.perform_request(request)
-                # send response 
+            server.latest_stock_info = json.loads(data)
+            readable.remove(server.stockmarketsim_sock)
+        # otherwise we have at least one client connection with data available
+        # handle all pendings reads before performing select again
+        while len(readable) > 0:
+            if start_time == -1:
+                start_time = time.time()
+            if (total_requests_handled % 1_000) <= 100:
+                print("Average throughput: ", total_requests_handled / (time.time() - start_time))
+            # randomly pick a client to service
+            conn = random.choice(readable)
+            readable.remove(conn)
+            #print(conn, server.pending_conns, server.name_to_conn)
+            if conn in server.pending_conns:
+                continue
+            if conn in [server.chain_sockets[x] for x in server.name_to_conn.keys()]:
+                total_requests_handled += 1
+                index = server.chain_to_index[conn]
+                server.finalize_request(index)
+                server.pending_conns.remove(server.name_to_conn[index])
+                del server.name_to_conn[index]
+                to_try = [x for x in server.pending_reqs[index]]
+                for request, attempted_conn in to_try:
+                    chain_sock = server.chain_sockets[server.hash(request["username"]) % server.num_chains]
+                    if chain_sock != conn:
+                        continue
+                    chain_servicer = server.start_request(request, attempted_conn)
+                    if chain_servicer != None:
+                        server.name_to_conn[chain_servicer] = attempted_conn
+                        server.pending_conns.add(attempted_conn)
+                        server.pending_reqs[index].remove((request, attempted_conn))
+                continue
+            # process requests from client until client disconnects
+            # read a request, getting status (1 for error on read, 0 for successful reading), and the request
+            status, request = receive_data(conn)
+            if status != 0:
+                # send back error that occured
+                error_msg = server.json_resp(False, request)
                 try:
-                    # if the client disconnects before we try to send, get a new connection
-                    conn.sendall(format_message(RPC_response))
+                    conn.send(format_message(error_msg))
                 except Exception:
-                    continue
+                    pass
+                continue
+            # if connection was broken or closed, go back to waiting for a new connection
+            if not request or request == {}:
+                conn.close()
+                server.socket_table.remove(conn)
+                continue
+            if request.get("action", None) != "leaderboard":
+                server.pending_conns.add(conn)
+                chain_servicer = server.start_request(request, conn)
+                if chain_servicer != None:
+                    server.name_to_conn[chain_servicer] = conn
+            else:
+                try:
+                    conn.sendall(format_message(server.start_request(request, conn)))
+                except Exception:
+                    pass
+
 
 
 if __name__ == "__main__":
-    # ensure only a port is given
-    if len(sys.argv) != 2:
-        print("Error: please enter project name as the only argument")
-        exit(1)
-
-    server = StockMarketBroker(sys.argv[1])
-    server.listen()
+    main()

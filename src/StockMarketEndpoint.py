@@ -108,10 +108,10 @@ class StockMarketEndpoint:
                 self.connect_to_broker(timeout)
                 continue
             # wait up to 5 seconds for a response
-            self.broker_socket.settimeout(5)
+            #self.broker_socket.settimeout(5)
             status, response = receive_data(self.broker_socket)
             # Error case where we timeout before getting all the data
-            if response == None or status == 1:
+            if response == None or status != 0:
                 print(f"Unable receive response from broker, retrying in {timeout} seconds")
                 time.sleep(timeout)
                 timeout *= 2

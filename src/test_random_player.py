@@ -14,8 +14,9 @@ def main():
                              username=sys.argv[2],
                              password=sys.argv[2])
     # Authenticate self
-    resp = sm.register(registered_ok=True)
-
+    resp = None
+    while resp == None:
+        resp = sm.register(registered_ok=True)
     
     # random policy
     c = 0
@@ -26,13 +27,23 @@ def main():
         tkr = random.choice(VALID_TICKERS)
         amt = random.randint(1, 15)
         if action == 'buy':
-            print(sm.buy(tkr, amt)['Value'])
+            while True:
+                resp = sm.buy(tkr, amt)
+                if resp['Success'] != None and resp['Value'] != "User associated with Username does not exist.":
+                    break
+                else:
+                    sm.register(registered_ok=True)
 
         elif action == 'sell':
-            print(sm.sell(tkr, amt)['Value'])
+            while True:
+                resp = sm.sell(tkr, amt)
+                if resp['Success'] != None and resp['Value'] != "User associated with Username does not exist.":
+                    break
+                else:
+                    sm.register(registered_ok=True)
         
         if c % 10 == 0:
-            print(sm.get_balance())
+            print(sm.get_balance(), sm.username)
         if c % 60 == 0:
             print(sm.get_leaderboard())
             

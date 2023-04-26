@@ -20,8 +20,52 @@ SUBSCRIBE_TIMEOUT = 10 * (10 ** 9)
 # DEBUG = True
 DEBUG = False
 
+class StockMarketUser:
+    """Defines a User for the broker to register
+    """
+    def __init__(self, username, password):
+        self.username = username
+        self.password = password
+        # init w/ 100k
+        self.cash = 100000
+        # init stocks
+        self.stocks = {ticker: 0 for ticker in VALID_TICKERS}
 
+    def can_purchase(self, amount, price):
+        """Checks that you have enough money to purchase.
+        """
+        return (self.cash - (amount * price) >= 0)
 
+    def can_sell(self, amount, ticker):
+        """Checks that you have enough of a certain stock to sell
+        """
+        return (self.stocks[ticker] >= amount)
+    
+    def purchase(self, ticker, amount, price):
+        """Purchase a stock
+        """
+        self.cash -= amount * price
+        self.stocks[ticker] += amount
+    
+    def sell(self, ticker, amount, price):
+        """Sell your stocks
+        """
+        self.cash += amount * price
+        self.stocks[ticker] -= amount
+        
+    def print_debug(self, *values):
+        print_debug(self.username, "--", *values)
+
+    def __repr__(self):
+        """Representation of a user's account 
+        """
+        user_str = f"User: {self.username:.10}\n"
+        user_str += "-" * 16 + '\n'
+        user_str += f"Cash | {self.cash:.2f}\n"
+        for ticker, amount in self.stocks.items():
+            user_str += f"{ticker} | {amount}\n"
+            user_str += "-" * 16 + '\n'
+        return user_str
 
 # this is a helper library that the broker and endpoint both use
 
@@ -111,7 +155,7 @@ def lookup_server(broker_name, server_type):
             html = ns_conn.getresponse().read()
             ns_conn.close()
         except Exception as e:
-            print(f"Unable to lookup {broker_name} from catalog server, retrying in {timeout} seconds")
+            print(f"Unable to contact catalog server, retrying in {timeout} seconds")
             time.sleep(timeout)
             timeout *= 2
             continue
@@ -125,7 +169,7 @@ def lookup_server(broker_name, server_type):
                 possible_brokers.append(broker)
         # error case for no servers found - try again
         if possible_brokers == []:        
-            print(f"Unable to lookup {broker_name} from catalog server, retrying in {timeout} seconds")
+            print(f"Unable to lookup {server_type} with project name {broker_name} from catalog server, retrying in {timeout} seconds")
             time.sleep(timeout)
             timeout *= 2
             continue
