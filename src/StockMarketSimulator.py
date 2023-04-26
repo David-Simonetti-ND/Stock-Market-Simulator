@@ -77,6 +77,8 @@ class StockMarketSimulator:
         self.pub_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.pub_port = self.pub_socket.getsockname()[1]
         self.sub_table = deque()
+        self.sub_set = set()
+        
 
     def _init_ns_socket(self):
         """Initializes name server socket
@@ -111,6 +113,7 @@ class StockMarketSimulator:
             print_debug(f"New Broker {addr} connected.")
         else:
             self.sub_table.append(((data["hostname"], data["port"]), time.time_ns()))
+            self.sub_set.add((data["hostname"], data["port"]))
             conn.close()
             print_debug(f"New Subscriber connected.")
     

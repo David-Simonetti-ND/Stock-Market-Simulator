@@ -17,6 +17,8 @@ def kill_runs(_, __):
 def run_multiple_users(num_users, proj_name):
     global runs
     for i in range(num_users):
+        if i % 10 == 0:
+            time.sleep(5)
         runs.append(subprocess.Popen(["python", "test_xput_player.py", proj_name, 'user' + str(i)],
                                 stdout=subprocess.PIPE, 
                                 stderr=subprocess.PIPE)

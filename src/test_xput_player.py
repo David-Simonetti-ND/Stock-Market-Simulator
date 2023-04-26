@@ -8,16 +8,19 @@ def print_result(_, __):
     exit(0)
 
 if __name__ == '__main__':
-    # init stock market endpoint
-    sm = StockMarketEndpoint(name=sys.argv[1], username=sys.argv[2], password=sys.argv[2])
     
-    sm.register(registered_ok=True)
+    sm = []
+    # init stock market endpoint
+    for i in range(10):
+        sm.append(StockMarketEndpoint(name=sys.argv[1], username=sys.argv[2], password=sys.argv[2]))
+        
+        sm[-1].register(registered_ok=True)
     
     # signal.signal(signal.SIGINT, print_result)
     
-    prev = None
-    prev_time = None
-    diff_time = None
+    # prev = None
+    # prev_time = None
+    # diff_time = None
     while True:
         pass
         # data = sm.get_stock_update()
