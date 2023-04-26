@@ -7,6 +7,7 @@ import select
 import random
 import http.client
 import signal
+from collections import deque 
 from StockMarketLib import format_message, receive_data, lookup_server, print_debug, VALID_TICKERS, StockMarketUser
 
 class StockMarketBroker:
@@ -67,7 +68,7 @@ class StockMarketBroker:
 
         self.pending_conns = set()
         self.name_to_conn = {}
-        self.pending_reqs = []
+        self.pending_reqs = {}
         self.done = {}
 
     def connect_to_server(self, server_type):
@@ -178,10 +179,11 @@ class StockMarketBroker:
         # add current stock info to request
         request["latest_stock_info"] = self.latest_stock_info
         username_hash = self.hash(request["username"])
-        chain_socket = self.chain_sockets[username_hash % self.num_chains]
-        if (username_hash % self.num_chains) in self.name_to_conn.keys():
-            if (request, conn) not in self.pending_reqs:
-                self.pending_reqs.append((request, conn))
+        chain_num = (username_hash % self.num_chains)
+        chain_socket = self.chain_sockets[chain_num]
+        if chain_num in self.name_to_conn.keys():
+            if (request, conn) not in self.pending_reqs[chain_num]:
+                self.pending_reqs[chain_num].append((request, conn))
             return None
         try:
             chain_socket.sendall(format_message(request))
@@ -189,10 +191,10 @@ class StockMarketBroker:
             print(f"Unable to send request to database server, adding to job queue")
             chain_socket.close()
             chain_socket = self.connect_to_server(f"chain-{username_hash % self.num_chains}")
-            self.chain_sockets[username_hash % self.num_chains] = chain_socket
-            self.chain_to_index[chain_socket] = (username_hash % self.num_chains)
-            if (request, conn) not in self.pending_reqs:
-                self.pending_reqs.append((request, conn))
+            self.chain_sockets[chain_num] = chain_socket
+            self.chain_to_index[chain_socket] = (chain_num)
+            if (request, conn) not in self.pending_reqs[chain_num]:
+                self.pending_reqs[chain_num].append((request, conn))
             return None
         return username_hash % self.num_chains
         
@@ -272,8 +274,7 @@ def main():
                 server.finalize_request(index)
                 server.pending_conns.remove(server.name_to_conn[index])
                 del server.name_to_conn[index]
-                random.shuffle(server.pending_reqs)
-                to_try = [x for x in server.pending_reqs]
+                to_try = [x for x in server.pending_reqs[index]]
                 for request, attempted_conn in to_try:
                     chain_sock = server.chain_sockets[server.hash(request["username"]) % server.num_chains]
                     if chain_sock != conn:
@@ -282,7 +283,7 @@ def main():
                     if chain_servicer != None:
                         server.name_to_conn[chain_servicer] = attempted_conn
                         server.pending_conns.add(attempted_conn)
-                        server.pending_reqs.remove((request, attempted_conn))
+                        server.pending_reqs[index].remove((request, attempted_conn))
                 continue
             # process requests from client until client disconnects
             # read a request, getting status (1 for error on read, 0 for successful reading), and the request
