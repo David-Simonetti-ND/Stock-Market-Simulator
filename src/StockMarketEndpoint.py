@@ -138,7 +138,7 @@ class StockMarketEndpoint:
         Recv is blocking, so other threads can run while blocking.
         """
         while True:
-            if (time.time_ns() - self.last_sub_time) > SUBSCRIBE_TIMEOUT:
+            if (time.time_ns() - self.last_sub_time) > SUBSCRIBE_TIMEOUT * .9:
                 self.subscribe_to_simulator()
             try:
                 self.recent_price = json.loads(self.info_sock.recv(1024))

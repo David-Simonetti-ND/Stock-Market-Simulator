@@ -1,7 +1,7 @@
 from StockMarketEndpoint import *
 import sys
 import signal
-
+import time
 
 def print_result(_, __):
     print(sm.username, diff_time)
@@ -13,7 +13,6 @@ if __name__ == '__main__':
     # init stock market endpoint
     for i in range(10):
         sm.append(StockMarketEndpoint(name=sys.argv[1], username=sys.argv[2], password=sys.argv[2]))
-        
         sm[-1].register(registered_ok=True)
     
     # signal.signal(signal.SIGINT, print_result)
@@ -22,7 +21,7 @@ if __name__ == '__main__':
     # prev_time = None
     # diff_time = None
     while True:
-        pass
+        time.sleep(100)
         # data = sm.get_stock_update()
         # # still None
         # if len(data) == 0:

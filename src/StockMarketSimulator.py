@@ -4,7 +4,7 @@ import time
 import socket
 import json
 import select
-import numpy as np
+# import numpy as np
 import signal
 import csv
 import sys
@@ -160,14 +160,27 @@ class StockMarketSimulator:
     # Sim Backend #
     ###############
     
+    # def simulate_next_minute(self):
+    #     '''Simulates the next minute's data by using a random walk over a minute bar'''
+    #     self.next_minute = {}
+    #     x = np.arange(0, int(self.minute_rate//self.update_rate + 1) , 1)
+    #     for t in self.tickers:
+    #         min = self.stock_prices[t][self.minute]
+    #         print(min)
+    #         # compute random motions
+    #         self.next_minute[t] = (((float(min[5]) - float(min[2])) / (self.minute_rate/self.update_rate)) * x + float(min[2]) + np.random.normal(0, np.random.uniform(.1, 1.9) * np.abs(float(min[3]) - float(min[4])) + .01, len(x))).round(2)
+    #     self.minute += 1
+
     def simulate_next_minute(self):
         '''Simulates the next minute's data by using a random walk over a minute bar'''
         self.next_minute = {}
-        x = np.arange(0, self.minute_rate/self.update_rate , 1)
+        x = [i for i in range(int(self.minute_rate//self.update_rate + 1))]
         for t in self.tickers:
             min = self.stock_prices[t][self.minute]
-            # compute random motions
-            self.next_minute[t] = (((float(min[5]) - float(min[2])) / (self.minute_rate/self.update_rate)) * x + float(min[2]) + np.random.normal(0, np.random.uniform(.1, 1.9) * np.abs(float(min[3]) - float(min[4])) + .01, len(x))).round(2)
+            # compute linear step
+            tmp = [((float(min[5]) - float(min[2])) / (self.minute_rate/self.update_rate)) * i + float(min[2]) for i in x]
+            # add random noise
+            self.next_minute[t] = [round(i + random.gauss(0, random.uniform(.1, 1.9) * abs(float(min[3]) - float(min[4])) + .01), 2)  for i in tmp]
         self.minute += 1
 
     
