@@ -199,8 +199,9 @@ class StockMarketSimulator:
                 "AAPL": ...,
                 "AMZN": ...,}
         """
+        start = time.time_ns()
         # message for each ticker
-        update = {"type" : "stockmarketsimupdate", "time": time.time_ns()}
+        update = {"type" : "stockmarketsimupdate", "time": start}
         for t in self.tickers:
             update[t] = self.next_minute[t][self.tick]
 
@@ -231,10 +232,7 @@ class StockMarketSimulator:
             
         # send data to subscribed sockets
         print_debug(f"Publishing to {len(self.sub_table)} clients...", update)
-        if TEST:
-            start = time.time_ns()
 
-        
         for sub_sock in self.sub_table:
             self.pub_socket.sendto(message.encode("utf-8"), sub_sock[0])
             
