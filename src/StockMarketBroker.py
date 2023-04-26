@@ -56,7 +56,7 @@ class StockMarketBroker:
         self.stockmarketsim_sock = self.connect_to_server("stockmarketsim")
         
         # update the leaderboard every minute 
-        signal.signal(signal.SIGALRM, self._update_leaderboard)
+        signal.signal(signal.SIGALRM, self._update)
         signal.setitimer(signal.ITIMER_REAL,60, 60) # now and every 60 seconds after
 
         self.num_chains = num_chains
@@ -94,6 +94,11 @@ class StockMarketBroker:
             timeout *= 2 
         return sock
         
+    def _update(self):
+        self.ns_update({"type" : "stockmarketbroker", "owner" : "dsimone2", "port" : self.port_number, "project" : self.broker_name})
+        self._update_leaderboard()
+
+
     def _update_leaderboard(self, _, __):
         ''' signaled function call to update the leaderboard.'''
         # snapshot of each ticker's price
@@ -231,9 +236,6 @@ def main():
     total_requests_handled = 0
     start_time = -1
     while True:
-        # if 1 minute has passed, perform a name server update
-        if (time.time_ns() - server.last_ns_update) >= (60*1000000000):
-            server.ns_update({"type" : "stockmarketbroker", "owner" : "dsimone2", "port" : server.port_number, "project" : server.broker_name})
         # use select to return a list of sockets ready for reading
         # wait up to 5 seconds for an incoming connection
         readable, _, _ = select.select(list(server.socket_table) + [server.stockmarketsim_sock] + list([server.chain_sockets[x] for x in server.name_to_conn.keys()]), [], [], 5)
@@ -260,9 +262,6 @@ def main():
                 start_time = time.time()
             if (total_requests_handled % 1_000) <= 100:
                 print("Average throughput: ", total_requests_handled / (time.time() - start_time))
-            # check if we should perform a name server update
-            if (time.time_ns() - server.last_ns_update) >= (60*1000000000):
-                server.ns_update({"type" : "stockmarketbroker", "owner" : "dsimone2", "port" : server.port_number, "project" : server.broker_name})
             # randomly pick a client to service
             conn = random.choice(readable)
             readable.remove(conn)
