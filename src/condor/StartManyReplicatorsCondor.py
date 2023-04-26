@@ -14,7 +14,7 @@ def handler(signum, frame):
 
 condor_command = '''
 executable     = /scratch365/dsimone2/scratch_conda/bin/python3 
-arguments      = "/scratch365/dsimone2/distsys/Stock-Market-Simulator/src/ChainReplicator.py {project_name} {chain_number}" 
+arguments      = "/scratch365/dsimone2/distsys/Stock-Market-Simulator/src/Replicator.py {project_name} {chain_number}" 
 should_transfer_files=yes
 transfer_input_files = table{chain_number}.ckpt, table{chain_number}.txn, table.ckpt.shadow
 request_cpus   = 1

@@ -10,7 +10,7 @@ import signal
 from StockMarketLib import format_message, receive_data, lookup_server, print_debug, VALID_TICKERS, StockMarketUser
 from StockMarketBroker import StockMarketBroker
 
-class ChainReplicator(StockMarketBroker):
+class Replicator(StockMarketBroker):
     def __init__(self, project_name, chain_num):
         """Initializes the chain replication server.
         
@@ -423,7 +423,7 @@ def main():
         print("Error: chain num must be an integer")
         exit(1)
 
-    chain = ChainReplicator(sys.argv[1], chain_num)
+    chain = Replicator(sys.argv[1], chain_num)
     
     while True:
         # if 1 minute has passed, perform a name server update
@@ -456,8 +456,5 @@ def main():
             except Exception:
                 pass
         
-
-
-
 if __name__ == "__main__":
     main()

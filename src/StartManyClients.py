@@ -17,8 +17,10 @@ names = []
 with open("names.txt", "r") as f:
     names = f.read().split("\n")
 
+chosen_names = random.sample(names, int(sys.argv[2]))
+
 for i in range(int(sys.argv[2])):
-    procs.append(subprocess.Popen(["python3", "random_player.py", sys.argv[1], random.choice(names)]))
+    procs.append(subprocess.Popen(["python3", sys.argv[3], sys.argv[1], chosen_names]))
 
 while True:
     time.sleep(1)
