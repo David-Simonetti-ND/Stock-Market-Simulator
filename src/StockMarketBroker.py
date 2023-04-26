@@ -94,9 +94,9 @@ class StockMarketBroker:
             timeout *= 2 
         return sock
         
-    def _update(self):
+    def _update(self, _, __):
         self.ns_update({"type" : "stockmarketbroker", "owner" : "dsimone2", "port" : self.port_number, "project" : self.broker_name})
-        self._update_leaderboard()
+        self._update_leaderboard(None, None)
 
 
     def _update_leaderboard(self, _, __):
