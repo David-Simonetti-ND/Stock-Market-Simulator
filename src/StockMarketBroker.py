@@ -313,18 +313,16 @@ def main():
                 except Exception:
                     pass
         if (total_requests_handled % 1_000) <= 10:
-            to_try = []
             for key in server.pending_reqs.keys():
                 if server.chain_sockets[key] in server.name_to_conn.keys() or len(server.pending_reqs[key]) == 0:
                     continue
-                to_try.append((index, server.pending_reqs[key][0]))
-            for index, (request, attempted_conn) in to_try:
+                request, attempted_conn = server.pending_reqs[key][0]
                 chain_sock = server.chain_sockets[server.hash(request["username"]) % server.num_chains]
                 chain_servicer = server.start_request(request, attempted_conn)
                 if chain_servicer != None:
                     server.name_to_conn[chain_servicer] = attempted_conn
                     server.pending_conns.add(attempted_conn)
-                    server.pending_reqs[index].remove((request, attempted_conn))
+                    server.pending_reqs[key].remove((request, attempted_conn))
 
 
 
