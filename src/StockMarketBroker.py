@@ -312,6 +312,16 @@ def main():
                     conn.sendall(format_message(server.start_request(request, conn)))
                 except Exception:
                     pass
+        to_try = [x for x in server.pending_reqs[index]]
+        for request, attempted_conn in to_try:
+            chain_sock = server.chain_sockets[server.hash(request["username"]) % server.num_chains]
+            if chain_sock in server.name_to_conn:
+                continue
+            chain_servicer = server.start_request(request, attempted_conn)
+            if chain_servicer != None:
+                server.name_to_conn[chain_servicer] = attempted_conn
+                server.pending_conns.add(attempted_conn)
+                server.pending_reqs[index].remove((request, attempted_conn))
 
 
 
