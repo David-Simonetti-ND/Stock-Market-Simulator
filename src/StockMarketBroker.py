@@ -316,7 +316,7 @@ def main():
         for key in server.pending_reqs.keys():
             if server.chain_sockets[key] in server.name_to_conn.keys():
                 continue
-            to_try += server.pending_reqs[key]
+            to_try.append(server.pending_reqs[key][0])
         for request, attempted_conn in to_try:
             chain_sock = server.chain_sockets[server.hash(request["username"]) % server.num_chains]
             chain_servicer = server.start_request(request, attempted_conn)
