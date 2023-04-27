@@ -72,10 +72,13 @@ class StockMarketBroker:
         self.name_to_conn = {}
         self.done = {}
 
-    def connect_to_server(self, server_type):
+    def connect_to_server(self, server_type, max_attempts=100):
         """ Connect to given server type on socket """
+        attempts = 0
         timeout = 1
         while True:
+            if attempts >= max_attempts:
+                return None
             possible_servers = lookup_server(self.broker_name, server_type) #"stockmarketsim")
             for server in possible_servers:
                 try:
@@ -92,6 +95,7 @@ class StockMarketBroker:
             print(f"Unable to connect to server {server_type}, retrying in {timeout} seconds")
             time.sleep(timeout)
             timeout *= 2 
+            attempts += 1
         return sock
         
     def _update(self, _, __):
@@ -116,11 +120,7 @@ class StockMarketBroker:
                 chain_socket.sendall(format_message(request))
                 status, data = receive_data(chain_socket)
             except Exception as e:
-                print(f"Unable to send request to database server, attempting to reconnect")
-                chain_socket.close()
-                chain_socket = self.connect_to_server(f"chain-{i}")
-                self.chain_sockets[i] = chain_socket
-                self.chain_to_index[chain_socket] = i
+                print(f"Unable to send request to database server to get leaderboard info")
                 continue
             try:
                 users = {**users, **data["Value"]}      
@@ -196,9 +196,10 @@ class StockMarketBroker:
         except Exception as e:
             print(f"Unable to send request to database server, adding to job queue")
             chain_socket.close()
-            chain_socket = self.connect_to_server(f"chain-{username_hash % self.num_chains}")
-            self.chain_sockets[chain_num] = chain_socket
-            self.chain_to_index[chain_socket] = (chain_num)
+            chain_socket = self.connect_to_server(f"chain-{username_hash % self.num_chains}", max_attempts=1)
+            if chain_socket != None:
+                self.chain_sockets[chain_num] = chain_socket
+                self.chain_to_index[chain_socket] = (chain_num)
             if (request, conn) not in self.pending_reqs[chain_num]:
                 self.pending_reqs[chain_num].append((request, conn))
             return None
