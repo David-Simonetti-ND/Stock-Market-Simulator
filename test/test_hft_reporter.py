@@ -1,5 +1,3 @@
-import sys
-sys.path.append('../src/')
 from StockMarketEndpoint import *
 import sys
 import signal
