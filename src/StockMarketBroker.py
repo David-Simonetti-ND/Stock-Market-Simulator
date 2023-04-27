@@ -261,8 +261,8 @@ def main():
         while len(readable) > 0:
             if start_time == -1:
                 start_time = time.time()
-            if (total_requests_handled % 1_000) <= 10:
-                print("Average throughput: ", total_requests_handled / (time.time() - start_time))
+            if (total_requests_handled % 1_000) == 0:
+                print(f"Time: {time.time_ns()} Requests handled: {total_requests_handled}")
             # randomly pick a client to service
             conn = random.choice(readable)
             readable.remove(conn)
@@ -312,17 +312,16 @@ def main():
                     conn.sendall(format_message(server.start_request(request, conn)))
                 except Exception:
                     pass
-        if (total_requests_handled % 1_000) <= 10:
-            for key in server.pending_reqs.keys():
-                if server.chain_sockets[key] in server.name_to_conn.keys() or len(server.pending_reqs[key]) == 0:
-                    continue
-                request, attempted_conn = server.pending_reqs[key][0]
-                chain_sock = server.chain_sockets[server.hash(request["username"]) % server.num_chains]
-                chain_servicer = server.start_request(request, attempted_conn)
-                if chain_servicer != None:
-                    server.name_to_conn[chain_servicer] = attempted_conn
-                    server.pending_conns.add(attempted_conn)
-                    server.pending_reqs[key].remove((request, attempted_conn))
+        for key in server.pending_reqs.keys():
+            if server.chain_sockets[key] in server.name_to_conn.keys() or len(server.pending_reqs[key]) == 0:
+                continue
+            request, attempted_conn = server.pending_reqs[key][0]
+            chain_sock = server.chain_sockets[server.hash(request["username"]) % server.num_chains]
+            chain_servicer = server.start_request(request, attempted_conn)
+            if chain_servicer != None:
+                server.name_to_conn[chain_servicer] = attempted_conn
+                server.pending_conns.add(attempted_conn)
+                server.pending_reqs[key].remove((request, attempted_conn))
 
 
 
