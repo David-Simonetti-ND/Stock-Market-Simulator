@@ -30,7 +30,7 @@ def get_val(stock_returns):
     return e_val              
 
 def get_best_ticker(returns):
-    """ Gets best ticker"""
+    """ Gets worst ticker"""
     best_e_val = 0
     best_ticker = None
     for ticker in VALID_TICKERS:

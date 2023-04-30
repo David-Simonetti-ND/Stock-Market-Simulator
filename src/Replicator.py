@@ -12,17 +12,18 @@ from StockMarketBroker import StockMarketBroker
 
 class Replicator(StockMarketBroker):
     def __init__(self, project_name, chain_num):
-        """Initializes the chain replication server.
+        """Initializes the replicator server.
         
         Also opens a UDP connection to the name server
 
         Args:
-            chain_name (str): name of the chain server
+            project_name (str): name of the project
+            chain_num    (int): replicator number
         """
         
         self.project_name = project_name
         self.chain_num = chain_num
-        # create socket
+        # create socket on any port from 9123-9223. This is done to play along with firewalls on crc machines.
         for i in range(100):
             # try to bind to port
             try:
@@ -33,9 +34,9 @@ class Replicator(StockMarketBroker):
                 break
             # error if port already in use
             except Exception as e:
-                print("Error: port in use")
                 self.socket.close()
-                
+            
+            # if we can't get an open port after 100 attempts, just quit
             if i == 99:
                 print("No open ports")
                 exit(1)
@@ -49,6 +50,7 @@ class Replicator(StockMarketBroker):
         self.num_users = 0
         self.users = {}
         self.leaderboard = []
+        # connection to broker 
         self.broker_conn = None
 
         # see if we need to perform a rebuild after a crash
@@ -56,7 +58,6 @@ class Replicator(StockMarketBroker):
         # set the txn_log to none to indicate that we are rebuilding from crash
         self.txn_log = None
         self.rebuild_server()
-        # once the server is rebuilt, there is two cases
         # start new transaction log
         self.txn_log = open(f"table{self.chain_num}.txn", "w")
         self.txn_count = 0
@@ -67,6 +68,7 @@ class Replicator(StockMarketBroker):
         self.ns_update({"type" : f"chain-{chain_num}", "owner" : "dsimone2", "port" : self.port_number, "project" : self.project_name})
 
         self.select_socks = [self.socket]
+        # keep track of latest stock info
         self.latest_stock_info = {}
 
     def accept_new_connection(self):
@@ -75,9 +77,12 @@ class Replicator(StockMarketBroker):
         conn, addr = self.socket.accept()
         conn.settimeout(60)
         status, data = receive_data(conn)
+        # if the connection doesnt tell us who they are, we ignore them
         if data is None or status == 2:
             return
+        # if the connection is the broker
         if data["type"] == "broker":
+            # update the broker connection to point to the new one
             if self.broker_conn:
                 self.select_socks.remove(self.broker_conn)
                 self.broker_conn.close()
@@ -347,6 +352,7 @@ class Replicator(StockMarketBroker):
         password = request.get("password", None)
         if password is None: return self.json_resp(False, "Password not provided")
 
+        # if the broker is polling us for leaderboard information, send it back all of our clients and their net worth
         if action == "broker_leaderboard":
             self.latest_stock_info = request.get("latest_stock_info", self.latest_stock_info)
             return self.json_resp(True, self.calculate_net_worths())
@@ -362,7 +368,6 @@ class Replicator(StockMarketBroker):
             # if successful, get the user
             else:
                 user = result['Value']
-            
 
         # switch statement to handle different request action
         if action == "buy":
@@ -415,14 +420,15 @@ class Replicator(StockMarketBroker):
 def main():
     # ensure only a port is given
     if len(sys.argv) != 3:
-        print("Error: please enter project name and chain number as arguments")
+        print("Error: please enter project name and replication number as arguments")
         exit(1)
     try:
         chain_num = int(sys.argv[2])
     except Exception:
-        print("Error: chain num must be an integer")
+        print("Error: replication number must be an integer")
         exit(1)
 
+    # create the replicator instance
     chain = Replicator(sys.argv[1], chain_num)
     
     while True:
@@ -430,6 +436,7 @@ def main():
         if (time.time_ns() - chain.last_ns_update) >= (60*1000000000):
             chain.ns_update({"type" : f"chain-{chain_num}", "owner" : "dsimone2", "port" : chain.port_number, "project" : chain.project_name})
 
+        # checkpoint after 100 transactions
         if chain.txn_count >= 100:
             chain.create_checkpoint()
             chain.txn_count = 0
@@ -439,14 +446,18 @@ def main():
         if readable == []:
             continue
 
+        # new incoming broker conn
         if chain.socket in readable:
             chain.accept_new_connection()
             readable.remove(chain.socket)
 
+        # broker is forwarding us a request
         if chain.broker_conn in readable:
             status, data = receive_data(chain.broker_conn)
             if status == 0 and data != None:
+                # update the latest stock info from new request
                 chain.latest_stock_info = data.get("latest_stock_info", chain.latest_stock_info)
+                # perform the request and forward it back
                 RPC_response = chain.perform_request(data)
                 RPC_response = format_message(RPC_response)
             else:
