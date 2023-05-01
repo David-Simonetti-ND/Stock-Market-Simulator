@@ -4,7 +4,7 @@
 # Description: Helper Library for Stock Market Methods
 
 import json
-import http
+import http.client
 import time
 
 ###################

@@ -256,7 +256,7 @@ class Replicator(StockMarketBroker):
         """
         nw = user.cash
         for t in VALID_TICKERS:
-            nw += user.stocks[t] * stock_info
+            nw += user.stocks[t] * stock_info[t]
         return nw
 
     def _calculate_net_worths(self):
@@ -289,6 +289,8 @@ class Replicator(StockMarketBroker):
         if username is None: return self.json_resp(False, "Username not provided.")
         password = request.get("password", None)
         if password is None: return self.json_resp(False, "Password not provided")
+        if self.latest_stock_info == None:
+            return self.json_resp(False, "Malformed request")
 
         # if the broker is polling us for leaderboard information, send it back all of our clients and their net worth
         if action == "broker_leaderboard":
