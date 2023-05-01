@@ -28,6 +28,15 @@ We three main goals for our system:
 
 ## Architecture
 
+David can you fill this in
+
+
+![Overview](results/img/Overview.png)
+![Simulator](results/img/Simulator.png)
+![Broker](results/img/Broker.png)
+![Replication](results/img/Replication.png)
+
+
 
 ## Evaluation
 We evaluted our system according to our 3 goals above:
@@ -35,7 +44,27 @@ We evaluted our system according to our 3 goals above:
 #### Consistency
 While we do not test the client-side (since our logging system should ensure that), we test what happens when our replication system crashes. In this plot, we observe that initially, our servers are servicing clients. At 10 seconds in, we crash all replicators and observe that no clients are being serviced. During this time, our replication manager goes through and restarts our replicators so that at ~23 seconds in all our clients can be serviced again.
 
-![image](results/img/Consistency.png)
+![consistency](results/img/Consistency.png)
+
+#### Throughput
+We test the total throughput of our system on 50, 100, 200, and 500 clients using a different number of replication servers. Initially, from 1-15 replication servers, the total throughput increases drastically for all clients. Then it starts leveling off. In an ideal system, we would only see this leveling off when the number of clients reaches the number of servers, since each server would begin handling more than 1 client. However, since we only have 1 load balancer, it is a source of bottleneck for our system.
+
+![throughput](results/img/Throughput.png)
+
+#### Latency
+We test the latency of both a high-frequency and low-frequency client. Overall, we observe that the latency goes up as the number of high-frequency clients increase, which is to be expected. We see a significant jump around 50-60 clients, which we suspect to be the point our load balancer becomes a bottleneck. For both HFT and LFT, the latency stays around the same, so our goal of fairness is met.
+
+![latency](results/img/Latency.png)
+
+#### Simulator Publish Times
+We wished to ensure that our simulator was not another source of bottleneck, we tested how long it would take in each publish interval to publish to an increasing number of clients. We observe that even with 1000 clients, the publish time is only 6ms, which is below our update rate of 10ms and the actual publish interval of 100ms. Thus, we could have more clients subscribe than our architecture can currently handle.
+
+![sim_clients](results/img/PubOverClients.png)
+
+Furthermore, since we implement a pub/sub scheme that might result in temporarily duplicated clients, we observe the publish times over time. The data shows that the publish times do near the update rate, particularly with the two spikes (which we cannot explain besides performance hiccups). However, this is not a problem if we simply updated the data asynchronously.
+
+![sim_time](results/img/PubOverTime.png)
+
 
 ## Running Code
 
