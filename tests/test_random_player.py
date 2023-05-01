@@ -1,3 +1,10 @@
+# File: test_random_player.py
+# Author: John Lee (jlee88@nd.edu)
+
+# Description: Runs a random strategy as a client. Buys/Sells 50% chance from 1-15 shares of a stock. 
+# usage:
+#   python test_random_player.py <proj_name> <client_name>
+
 import sys, time
 import random
 

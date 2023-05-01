@@ -1,9 +1,13 @@
-import sys, time
-import random
-from collections import defaultdict
+# File: test_interactive.py
+# Author: John Lee (jlee88@nd.edu)
 
+# Description: An interactive client for manual testing of API methods. 
+# usage:
+#   python test_interactive.py <proj_name> <client_name> (-raw)
+
+
+import sys
 from StockMarketEndpoint import *
-from StockMarketLib import VALID_TICKERS
 
 
 def main():

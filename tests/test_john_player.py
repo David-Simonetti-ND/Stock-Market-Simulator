@@ -1,5 +1,11 @@
-import sys, time
-import random
+# File: test_john_player.py
+# Author: John Lee (jlee88@nd.edu)
+
+# Description: Runs John's strategy as a client
+# usage:
+#   python test_john_player.py <proj_name> <client_name>
+
+import sys
 from collections import defaultdict
 
 from StockMarketEndpoint import *

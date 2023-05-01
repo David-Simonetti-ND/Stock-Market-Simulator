@@ -1,6 +1,12 @@
+# File: test_observe_leaderboard.py
+# Author: John Lee (jlee88@nd.edu)
+
+# Description: A client that only retrieves the leaderboard every minute.
+# usage:
+#   python test_observe_leaderboard.py <proj_name>
+
 from StockMarketEndpoint import *
 import sys
-import signal
 import time
 import re
 from collections import defaultdict

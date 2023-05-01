@@ -1,14 +1,20 @@
-# Test script to test multiple users collection
+# File: test_simulator.py
+# Author: John Lee (jlee88@nd.edu) 
+
+# Description: Test script to test many clients connecting to the simulator only
+# usage 
+#   python test_simulator.py <proj_name> <num_clients>
+
 import subprocess
 from pathlib import Path
 import sys
-import time
 import signal
 
 runs = []
 
 
 def kill_runs(_, __):
+    """Kill children"""
     for r in runs:
         r.send_signal(signal.SIGINT)
     exit(0)
@@ -18,7 +24,7 @@ def run_multiple_users(num_users, proj_name):
     for i in range(num_users):
         # if i % 10 == 0:
         #     time.sleep(5)
-        runs.append(subprocess.Popen(["python", "test_xput_player.py", proj_name, 'user' + str(i)],
+        runs.append(subprocess.Popen(["python", "test_inactive_player.py", proj_name, 'user' + str(i)],
                                 stdout=subprocess.PIPE, 
                                 stderr=subprocess.PIPE)
         )
@@ -27,22 +33,6 @@ def run_multiple_users(num_users, proj_name):
     
     while True:
         pass
-    # time.sleep(3)
-    # intervals = []
-    # users = []
-    # for r in runs:
-    #     stdout, stderr = r.communicate()
-    #     stdout = stdout.decode("utf-8")
-    #     # print(stdout, stderr)
-    #     user, interval = stdout.rstrip().split(' ')
-    #     intervals.append(float(interval))
-    #     users.append(user)
-        
-        
-    # print(users)
-    # print(sum(intervals) / len(intervals))
-    # print(max(intervals) - min(intervals))
-    # print(max(intervals), min(intervals))
 
 
 if __name__ == '__main__':

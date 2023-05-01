@@ -1,6 +1,12 @@
+# File: test_lft_reporter.py
+# Author: John Lee (jlee88@nd.edu)
+
+# Description: Reports Latencies for a LFT client.
+# usage:
+#   python test_lft_reporter.py <proj_name> <client_name>
+
 from StockMarketEndpoint import *
 import sys
-import signal
 import time
 
 if __name__ == '__main__':

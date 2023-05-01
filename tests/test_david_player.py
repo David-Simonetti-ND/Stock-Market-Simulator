@@ -1,5 +1,11 @@
-import sys, time
-import random
+# File: test_david_player.py
+# Author: David Simonneti (dsimone2@nd.edu) 
+
+# Description: Runs David's strategy as a client. 
+# usage:
+#   python test_david_player.py <proj_name> <client_name>
+
+import sys
 from collections import defaultdict
 
 from StockMarketEndpoint import *

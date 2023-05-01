@@ -1,7 +1,12 @@
+# File: test_hft.py
+# Author: John Lee (jlee88@nd.edu)
+
+# Description: Generates a simple client that just sends buy/sell requests as fast as possible. 
+# usage:
+#   python test_hft.py <proj_name> <client_name>
+
 from StockMarketEndpoint import *
 import sys
-import signal
-import time
 
 if __name__ == '__main__':
     
