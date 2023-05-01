@@ -30,10 +30,17 @@ We three main goals for our system:
 
 David can you fill this in
 
+#### Overview
 
 ![Overview](results/img/Overview.png)
+
+#### Simulator
 ![Simulator](results/img/Simulator.png)
+
+#### Broker/Load Balancer
 ![Broker](results/img/Broker.png)
+
+#### Replicator/Replication Manager
 ![Replication](results/img/Replication.png)
 
 
