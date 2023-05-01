@@ -78,3 +78,6 @@ def main():
                 subprocess.Popen(["condor_submit", f"client{i}.txt"])
         # continue until control-c is received
         time.sleep(1)
+
+if __name__ == "__main__":
+    main()

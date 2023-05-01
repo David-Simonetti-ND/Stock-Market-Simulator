@@ -72,3 +72,6 @@ def main():
             if "aborted" in updates or "terminated" in updates:
                 subprocess.Popen(["condor_submit", f"job{i}.txt"])
         time.sleep(1)
+
+if __name__ == "__main__":
+    main()
