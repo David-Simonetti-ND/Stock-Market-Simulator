@@ -57,10 +57,6 @@ class StockMarketBroker:
 
         # connect to simulator
         self.stockmarketsim_sock = self.connect_to_server("stockmarketsim")
-        
-        # update the leaderboard & name server every minute 
-        signal.signal(signal.SIGALRM, self._update)
-        signal.setitimer(signal.ITIMER_REAL, .1, 60) # now and every 60 seconds after
 
         # used to set up replication servers
         # each 1 of n replication servers will handle about 1/n of client information/requests
@@ -95,6 +91,10 @@ class StockMarketBroker:
                 self.stockmarketsim_sock = self.connect_to_server("stockmarketsim")
                 continue
             self.latest_stock_info = json.loads(data)
+
+        # update the leaderboard & name server every minute 
+        signal.signal(signal.SIGALRM, self._update)
+        signal.setitimer(signal.ITIMER_REAL, .1, 60) # now and every 60 seconds after
     
     ##################
     # Socket Methods #
