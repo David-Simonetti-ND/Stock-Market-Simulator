@@ -256,7 +256,7 @@ class Replicator(StockMarketBroker):
         """
         nw = user.cash
         for t in VALID_TICKERS:
-            nw += user.stocks[t] * stock_info
+            nw += user.stocks[t] * stock_info[t]
         return nw
 
     def _calculate_net_worths(self):
