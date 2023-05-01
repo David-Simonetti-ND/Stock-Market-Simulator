@@ -1,17 +1,21 @@
+# File: StartManyReplicatorsCondor.py
+# Author: David Simonneti (dsimone2@nd.edu)
+# 
+# Description: Script to start multiple replicators from HTCondor.
+
 import subprocess
-import shutil
 import sys
-import os
 import signal
 import time
 
 procs = []
 def handler(signum, frame):
-    # cleanup all condor jobs and child processes
+    """Cleanup function for condor jobs"""
     subprocess.Popen(["condor_rm", "dsimone2"])
     for proc in procs:
         proc.kill()
     exit(0)
+    
 def main():
     if len(sys.argv) != 3:
         print("Error: please enter project name, number of clients to start")

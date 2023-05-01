@@ -1,9 +1,12 @@
-import socket, http.client, json, time
+# File: StockMarketEndpoint.py
+# Author: John Lee (jlee88@nd.edu) & David Simonneti (dsimone2@nd.edu) 
+
+# Description: Class/Endpoint that clients utilize to connect to the broker server
+
+import socket, json, time
 import random
 import threading
-from StockMarketLib import format_message, receive_data, lookup_server, SUBSCRIBE_TIMEOUT, print_debug, DEBUG
-
-DEBUG = False
+from StockMarketLib import format_message, receive_data, lookup_server, SUBSCRIBE_TIMEOUT, print_debug
 
 class StockMarketEndpoint:
     """API Endpoint for a user to connect to the broker/simulator with
@@ -38,11 +41,11 @@ class StockMarketEndpoint:
             # try to connect to each server
             for broker in possible_brokers:
                 try:
-                    #print_debug(f"Trying to connect to {broker}")
+                    # print_debug(f"Trying to connect to {broker}")
                     # create new socket and attempt connection
                     self.broker_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     self.broker_socket.connect((broker["name"], broker["port"]))
-                    # print_debug("Connected to Broker.")
+                    print_debug("Connected to Broker.")
                     # if we are successful, we can return with a complete connection
                     return
                 except Exception as e:
@@ -69,13 +72,13 @@ class StockMarketEndpoint:
             for sim in possible_sims:
                 try:
                     # create new socket and attempt connection
-                    #print_debug(f"Trying to subscribe to {sim}")
+                    # print_debug(f"Trying to subscribe to {sim}")
                     self.sim_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     self.sim_socket.connect((sim["name"], sim["port"]))
                     self.sim_socket.sendall(format_message({"hostname": sock_info[0], "port": sock_info[1], "resub": resub}))
                     self.sim_socket.close()
                     self.last_sub_time = time.time_ns()
-                    # print_debug("Resubscribed to StockMarketSim.")
+                    print_debug("Resubscribed to StockMarketSim.")
                     # if we are successful, we can return with a complete connection
                     return
                 except Exception as e:

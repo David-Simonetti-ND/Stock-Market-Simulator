@@ -1,16 +1,20 @@
+# File: Replicator.py
+# Author: David Simonneti (dsimone2@nd.edu) and John Lee 
+# 
+# Description: Replicator class that performs broker operations
+
 import socket
 import sys
 import time
 import os
 import json
 import select
-import random
-import http.client
 import signal
-from StockMarketLib import format_message, receive_data, lookup_server, print_debug, VALID_TICKERS, StockMarketUser
+from StockMarketLib import format_message, receive_data, print_debug, VALID_TICKERS, StockMarketUser
 from StockMarketBroker import StockMarketBroker
 
 class Replicator(StockMarketBroker):
+    
     def __init__(self, project_name, chain_num):
         """Initializes the replicator server.
         
@@ -23,6 +27,8 @@ class Replicator(StockMarketBroker):
         
         self.project_name = project_name
         self.chain_num = chain_num
+        
+        ## Socket Creation
         # create socket on any port from 9123-9223. This is done to play along with firewalls on crc machines.
         for i in range(100):
             # try to bind to port
@@ -43,7 +49,6 @@ class Replicator(StockMarketBroker):
 
         self.port_number = self.socket.getsockname()[1]
         print(f"Listening on port {self.port_number}")
-        
         self.socket.listen()
         
         # for users and the leaderboard
@@ -65,11 +70,21 @@ class Replicator(StockMarketBroker):
         # send information to name server
         self.ns_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.ns_socket.connect(("catalog.cse.nd.edu", 9097))
-        self.ns_update({"type" : f"chain-{chain_num}", "owner" : "dsimone2", "port" : self.port_number, "project" : self.project_name})
-
+        # update the leaderboard & name server every minute 
+        signal.signal(signal.SIGALRM, self._update_ns_handler)
+        signal.setitimer(signal.ITIMER_REAL, .1, 60) # now and every 60 seconds after
+        
         self.select_socks = [self.socket]
         # keep track of latest stock info
         self.latest_stock_info = {}
+    
+    ##################
+    # Socket Methods #
+    ##################
+    
+    def _update_ns_handler(self, _, __):
+        """signal-based async update of name server"""
+        self._update_ns({"type" : f"chain-{chain_num}", "owner" : "dsimone2", "port" : self.port_number, "project" : self.project_name})
 
     def accept_new_connection(self):
         """Accepts a new connection and adds it to the socket table.
@@ -89,7 +104,229 @@ class Replicator(StockMarketBroker):
             self.broker_conn = conn
             self.select_socks.append(conn)
     
+    ###############
+    # API Backend #
+    ###############
+    
+    def _register_user(self, username, password):
+        """Registers Users if they are not registered yet
+        """
+        # check its not already taken
+        if username in self.users: 
+            err = f"Username {username} is already in use."
+            print_debug(err)
+            return self.json_resp(False, err)
+        self.write_txn(f"{time.time_ns()} REGISTER {len(username)} {username} {len(password)} {password}\n")
+        self.users[username] = StockMarketUser(username, password)
+        print_debug(f"User {username} was registered.")
+        return self.json_resp(True, None)
+    
+    def _authenticate(self, username, password):
+        """Authenticates and retrieves the associated user
+        """
+        if username not in self.users:
+            err =  "User associated with Username does not exist."
+            print_debug(err)
+            return self.json_resp(False, err)
+        else:
+            user = self.users[username]
+            # check password
+            if user.password == password:
+                print_debug(f"User {username} was authenticated.")
+                return self.json_resp(True, user)
+            else:
+                err = f"Password for {username} is incorrect"
+                print_debug(err)
+                return self.json_resp(False, err)
+            
+    def _user_buy(self, user: StockMarketUser, request):
+        """Purchase a stock
+        """
+        # check valid ticker to buy
+        ticker = request.get("ticker", None)
+        if ticker not in VALID_TICKERS or ticker is None:
+            err = f"Ticker {ticker} is not valid."
+            user.print_debug(err)
+            return self.json_resp(False, f"Ticker {ticker} is not valid.")
+        
+        # check amount to purchase
+        amount = request.get("amount", None)
+        if amount is None:
+            err = "Amount to purchase was not specified"
+            user.print_debug(err)
+            return self.json_resp(False, "Amount to purchase was not specified")
+        else:
+            try: 
+                amount = int(amount)
+            except Exception as e:
+                err = f"Amount must be an integer value: {e}"
+                user.print_debug(err)
+                return self.json_resp(False, err)
+            if amount < 0:
+                err = f"Amount must be a positive value >0."
+                user.print_debug(err)
+                return self.json_resp(False, err)
+            elif amount == 0:
+                # automatic success
+                succ = f"Purchased 0 shares of {ticker}."
+                user.print_debug(succ)
+                return self.json_resp(True, succ )
+        
+        # snapshot buy price
+        buy_price = self.latest_stock_info[ticker]
+        
+        # can purchase
+        if user.can_purchase(amount, buy_price):
+            self.write_txn(f"{time.time_ns()} BUY {len(user.username)} {user.username} {ticker} {amount} {buy_price}\n")
+            user.purchase(ticker, amount, buy_price)
+            succ = f"Purchased {amount} shares of {ticker} at {buy_price}"
+            user.print_debug(succ)
+            return self.json_resp(True, succ)
+        # insufficient funds
+        else:
+            err = f"Insufficient funds to purchase {amount} shares of {ticker} at {buy_price}"
+            user.print_debug(err)
+            return self.json_resp(False, err)
+        
+        
+    def _user_sell(self, user: StockMarketUser, request):
+        """Sell stocks
+        """
+        # check valid ticker to buy
+        ticker = request.get("ticker", None)
+        if ticker not in VALID_TICKERS or ticker is None:
+            err =  f"Ticker {ticker} is not valid."
+            user.print_debug(err)
+            return self.json_resp(False, err)
+        
+        # check amount to purchase
+        amount = request.get("amount", None)
+        if amount is None:
+            err = "Amount to sell was not specified"
+            user.print_debug(err)
+            return self.json_resp(False, err)
+        else:
+            try: 
+                amount = int(amount)
+            except Exception as e:
+                err = f"Amount must be an integer value: {e}"
+                user.print_debug(err)
+                return self.json_resp(False, err)
+            if amount < 0:
+                err = f"Amount must be a positive value >0."
+                user.print_debug(err)
+                return self.json_resp(False, err)
+            elif amount == 0:
+                # automatic success
+                succ = f"Sold 0 shares of {ticker}."
+                user.print_debug(succ)
+                return self.json_resp(True, succ)
+            
+        # snapshot sell price
+        sell_price = self.latest_stock_info[ticker]
+        
+        # can sell
+        if user.can_sell(amount, ticker):
+            self.write_txn(f"{time.time_ns()} SELL {len(user.username)} {user.username} {ticker} {amount} {sell_price}\n")
+            user.sell(ticker, amount, sell_price)
+            succ = f"Sold {amount} shares of {ticker} at {sell_price}"
+            user.print_debug(succ)
+            return self.json_resp(True, succ)
+        # insufficient shares
+        else:
+            err = f"Insufficient owned shares to sell {amount} shares of {ticker} at {sell_price}"
+            user.print_debug(err)
+            return self.json_resp(False, err)
+        
+        
+    def _get_user_balance(self, user: StockMarketUser):
+        """Gets a user's balance
+        """
+        # net worth
+        worth = self._net_worth(user, self.latest_stock_info)
+        
+        # string representation & data repr
+        user_rep = str(user) + f"Net Worth: {worth}"
+        resp = {"Str": user_rep, "Net Worth": worth, "Cash": user.cash, "Stocks": user.stocks}
+        user.print_debug("\n" + user_rep)
+        return self.json_resp(True, resp)
+    
+    def _net_worth(self, user: StockMarketUser, stock_info):
+        """Compute the net worth of an individual at a certian stock price
+        """
+        nw = user.cash
+        for t in VALID_TICKERS:
+            nw += user.stocks[t] * stock_info
+        return nw
+
+    def _calculate_net_worths(self):
+        """ Calculates net worth of all users
+        """
+        # snapshot stock information
+        freeze_price = self.latest_stock_info.copy()
+        # for every user, compute net worth
+        net_worths = {}
+        for user in self.users:
+            net_worths[user] = self._net_worth(self.users[user], freeze_price)
+        return net_worths
+        
+    ###################
+    # Request Handler #
+    ###################
+        
+    def perform_request(self, request):
+        """Redirect requests from a client to appropriate function. 
+        API calls are register, buy, sell, balance, leaderboard
+        """
+        # get action
+        action = request.get("action", None)
+        if action is None: return self.json_resp(False, "Action was not provided")
+        
+        ## Authenticate or Register
+        
+        # get username & password
+        username = request.get("username", None)
+        if username is None: return self.json_resp(False, "Username not provided.")
+        password = request.get("password", None)
+        if password is None: return self.json_resp(False, "Password not provided")
+
+        # if the broker is polling us for leaderboard information, send it back all of our clients and their net worth
+        if action == "broker_leaderboard":
+            self.latest_stock_info = request.get("latest_stock_info", self.latest_stock_info)
+            return self.json_resp(True, self._calculate_net_worths())
+        # register the user
+        elif action == 'register':
+            return self._register_user(username, password)
+        # autheticate using password
+        else:
+            result = self._authenticate(username, password)
+            # if authentication failed return result
+            if result['Success'] == False:
+                return result
+            # if successful, get the user
+            else:
+                user = result['Value']
+
+        # switch statement to handle different request action
+        if action == "buy":
+            return self._user_buy(user, request)
+        elif action == "sell":
+            return self._user_sell(user, request)
+        elif action == 'balance':
+            return self._get_user_balance(user)
+        elif action == 'leaderboard':
+            return self._get_leaderboard()
+        else:
+            # handle case for invalid action specified
+            return self.json_resp(False, f"{action} is an invalid action.")
+    
+    #######################
+    # Persistence Methods #
+    #######################
+    
     def rebuild_server(self):
+        """Rebuild the server by reading through ckpt & transaction log
+        """
         # time the last checkpoint was made - used to see which transactions from the transactions log we should actually play back
         ckpt_time = 0
         # only rebuild from checkpoint if the file exists
@@ -180,211 +417,9 @@ class Replicator(StockMarketBroker):
             # once we are done replaying all transactions, create a new checkpoint so we can delete the old transaction log
             self.create_checkpoint()
 
-    def _register_user(self, username, password):
-        """Registers Users if they are not registered yet"""
-        # check its not already taken
-        if username in self.users: 
-            err = f"Username {username} is already in use."
-            print_debug(err)
-            return self.json_resp(False, err)
-        self.write_txn(f"{time.time_ns()} REGISTER {len(username)} {username} {len(password)} {password}\n")
-        self.users[username] = StockMarketUser(username, password)
-        print_debug(f"User {username} was registered.")
-        return self.json_resp(True, None)
-    
-    def _authenticate(self, username, password):
-        """authenticates and retrieves the associated user"""
-        if username not in self.users:
-            err =  "User associated with Username does not exist."
-            print_debug(err)
-            return self.json_resp(False, err)
-        else:
-            user = self.users[username]
-            # check password
-            if user.password == password:
-                print_debug(f"User {username} was authenticated.")
-                return self.json_resp(True, user)
-            else:
-                err = f"Password for {username} is incorrect"
-                print_debug(err)
-                return self.json_resp(False, err)
-            
-    def _user_buy(self, user: StockMarketUser, request):
-        """Purchase a stock"""
-        # check valid ticker to buy
-        ticker = request.get("ticker", None)
-        if ticker not in VALID_TICKERS or ticker is None:
-            err = f"Ticker {ticker} is not valid."
-            user.print_debug(err)
-            return self.json_resp(False, f"Ticker {ticker} is not valid.")
-        
-        # check amount to purchase
-        amount = request.get("amount", None)
-        if amount is None:
-            err = "Amount to purchase was not specified"
-            user.print_debug(err)
-            return self.json_resp(False, "Amount to purchase was not specified")
-        else:
-            try: 
-                amount = int(amount)
-            except Exception as e:
-                err = f"Amount must be an integer value: {e}"
-                user.print_debug(err)
-                return self.json_resp(False, err)
-            if amount < 0:
-                err = f"Amount must be a positive value >0."
-                user.print_debug(err)
-                return self.json_resp(False, err)
-            elif amount == 0:
-                # automatic success
-                succ = f"Purchased 0 shares of {ticker}."
-                user.print_debug(succ)
-                return self.json_resp(True, succ )
-        
-        # snapshot buy price
-        buy_price = self.latest_stock_info[ticker]
-        
-        # can purchase
-        if user.can_purchase(amount, buy_price):
-            self.write_txn(f"{time.time_ns()} BUY {len(user.username)} {user.username} {ticker} {amount} {buy_price}\n")
-            user.purchase(ticker, amount, buy_price)
-            succ = f"Purchased {amount} shares of {ticker} at {buy_price}"
-            user.print_debug(succ)
-            return self.json_resp(True, succ)
-        # insufficient funds
-        else:
-            err = f"Insufficient funds to purchase {amount} shares of {ticker} at {buy_price}"
-            user.print_debug(err)
-            return self.json_resp(False, err)
-        
-        
-    def _user_sell(self, user: StockMarketUser, request):
-        """Sell stocks """
-        # check valid ticker to buy
-        ticker = request.get("ticker", None)
-        if ticker not in VALID_TICKERS or ticker is None:
-            err =  f"Ticker {ticker} is not valid."
-            user.print_debug(err)
-            return self.json_resp(False, err)
-        
-        # check amount to purchase
-        amount = request.get("amount", None)
-        if amount is None:
-            err = "Amount to sell was not specified"
-            user.print_debug(err)
-            return self.json_resp(False, err)
-        else:
-            try: 
-                amount = int(amount)
-            except Exception as e:
-                err = f"Amount must be an integer value: {e}"
-                user.print_debug(err)
-                return self.json_resp(False, err)
-            if amount < 0:
-                err = f"Amount must be a positive value >0."
-                user.print_debug(err)
-                return self.json_resp(False, err)
-            elif amount == 0:
-                # automatic success
-                succ = f"Sold 0 shares of {ticker}."
-                user.print_debug(succ)
-                return self.json_resp(True, succ)
-            
-        # snapshot sell price
-        sell_price = self.latest_stock_info[ticker]
-        
-        # can sell
-        if user.can_sell(amount, ticker):
-            self.write_txn(f"{time.time_ns()} SELL {len(user.username)} {user.username} {ticker} {amount} {sell_price}\n")
-            user.sell(ticker, amount, sell_price)
-            succ = f"Sold {amount} shares of {ticker} at {sell_price}"
-            user.print_debug(succ)
-            return self.json_resp(True, succ)
-        # insufficient shares
-        else:
-            err = f"Insufficient owned shares to sell {amount} shares of {ticker} at {sell_price}"
-            user.print_debug(err)
-            return self.json_resp(False, err)
-        
-        
-    def _get_user_balance(self, user: StockMarketUser):
-        """Gets a user's balance
-        """
-        # net worth
-        worth = user.cash
-        for ticker in VALID_TICKERS:
-            worth += self.latest_stock_info[ticker] * user.stocks[ticker]
-        
-        user_rep = str(user) + f"Net Worth: {worth}"
-        resp = {"Str": user_rep, "Net Worth": worth, "Cash": user.cash, "Stocks": user.stocks}
-        user.print_debug("\n" + user_rep)
-        return self.json_resp(True, resp)
-    
-    def calculate_net_worths(self):
-        def net_worth(user):
-            nw = user.cash
-            for t in VALID_TICKERS:
-                nw += user.stocks[t] * self.latest_stock_info[t]
-            return nw
-        net_worths = {}
-        for user in self.users:
-            net_worths[user] = net_worth(self.users[user])
-        return net_worths
-        
-    def perform_request(self, request):
-        """Redirect requests from a client to appropriate function.
-
-        Args:
-            request (_type_): _description_
-
-        Returns:
-            _type_: _description_
-        """
-        # get action
-        action = request.get("action", None)
-        if action is None: return self.json_resp(False, "Action was not provided")
-        
-        ## Authenticate or Register
-        
-        # get username & password
-        username = request.get("username", None)
-        if username is None: return self.json_resp(False, "Username not provided.")
-        password = request.get("password", None)
-        if password is None: return self.json_resp(False, "Password not provided")
-
-        # if the broker is polling us for leaderboard information, send it back all of our clients and their net worth
-        if action == "broker_leaderboard":
-            self.latest_stock_info = request.get("latest_stock_info", self.latest_stock_info)
-            return self.json_resp(True, self.calculate_net_worths())
-        # register the user
-        elif action == 'register':
-            return self._register_user(username, password)
-        # autheticate using password
-        else:
-            result = self._authenticate(username, password)
-            # if authentication failed return result
-            if result['Success'] == False:
-                return result
-            # if successful, get the user
-            else:
-                user = result['Value']
-
-        # switch statement to handle different request action
-        if action == "buy":
-            return self._user_buy(user, request)
-        elif action == "sell":
-            return self._user_sell(user, request)
-        elif action == 'balance':
-            return self._get_user_balance(user)
-        elif action == 'leaderboard':
-            return self._get_leaderboard()
-        else:
-            # handle case for invalid action specified
-            return self.json_resp(False, f"{action} is an invalid action.")
-
-
-    # takes in the transaction message and writes it to the log
     def write_txn(self, message):
+        """Writes TXN file
+        """
         if self.txn_log == None:
             return
         # write transaction message to log
@@ -398,6 +433,8 @@ class Replicator(StockMarketBroker):
         print_debug("TXN LOG written.")
 
     def create_checkpoint(self):
+        """Writes CKPT file
+        """
         # open shadow checkpoint file to begin checkpointing
         shadow_ckpt = open("./table.ckpt.shadow", "w")
         # write the current time as a header 
@@ -417,7 +454,42 @@ class Replicator(StockMarketBroker):
             
         print_debug("CKPT created.")     
 
-def main():
+    def listen(self):
+
+        while True:
+
+            # checkpoint after 100 transactions
+            if self.txn_count >= 100:
+                self.create_checkpoint()
+                self.txn_count = 0
+            
+            readable, _, _ = select.select(self.select_socks, [], [], 5)
+
+            if readable == []:
+                continue
+
+            # new incoming broker conn
+            if self.socket in readable:
+                self.accept_new_connection()
+                readable.remove(self.socket)
+
+            # broker is forwarding us a request
+            if self.broker_conn in readable:
+                status, data = receive_data(self.broker_conn)
+                if status == 0 and data != None:
+                    # update the latest stock info from new request
+                    self.latest_stock_info = data.get("latest_stock_info", self.latest_stock_info)
+                    # perform the request and forward it back
+                    RPC_response = self.perform_request(data)
+                    RPC_response = format_message(RPC_response)
+                else:
+                    RPC_response = format_message(self.json_resp(False, "Unintelligable request"))
+                try:
+                    self.broker_conn.sendall(RPC_response)
+                except Exception:
+                    pass
+        
+if __name__ == "__main__":
     # ensure only a port is given
     if len(sys.argv) != 3:
         print("Error: please enter project name and replication number as arguments")
@@ -427,45 +499,7 @@ def main():
     except Exception:
         print("Error: replication number must be an integer")
         exit(1)
-
-    # create the replicator instance
+        
+    # create the replicator instance & listen
     chain = Replicator(sys.argv[1], chain_num)
-    
-    while True:
-        # if 1 minute has passed, perform a name server update
-        if (time.time_ns() - chain.last_ns_update) >= (60*1000000000):
-            chain.ns_update({"type" : f"chain-{chain_num}", "owner" : "dsimone2", "port" : chain.port_number, "project" : chain.project_name})
-
-        # checkpoint after 100 transactions
-        if chain.txn_count >= 100:
-            chain.create_checkpoint()
-            chain.txn_count = 0
-        
-        readable, _, _ = select.select(chain.select_socks, [], [], 5)
-
-        if readable == []:
-            continue
-
-        # new incoming broker conn
-        if chain.socket in readable:
-            chain.accept_new_connection()
-            readable.remove(chain.socket)
-
-        # broker is forwarding us a request
-        if chain.broker_conn in readable:
-            status, data = receive_data(chain.broker_conn)
-            if status == 0 and data != None:
-                # update the latest stock info from new request
-                chain.latest_stock_info = data.get("latest_stock_info", chain.latest_stock_info)
-                # perform the request and forward it back
-                RPC_response = chain.perform_request(data)
-                RPC_response = format_message(RPC_response)
-            else:
-               RPC_response = format_message(chain.json_resp(False, "Unintelligable request"))
-            try:
-                chain.broker_conn.sendall(RPC_response)
-            except Exception:
-                pass
-        
-if __name__ == "__main__":
-    main()
+    chain.listen()

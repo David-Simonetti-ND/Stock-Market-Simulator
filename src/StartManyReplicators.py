@@ -1,3 +1,8 @@
+# File: StartManyReplicators.py
+# Author: David Simonneti (dsimone2@nd.edu)
+# 
+# Description: Script to start multiple replicators from command line.
+
 import subprocess
 import sys
 import os
@@ -5,8 +10,8 @@ import signal
 import time
 
 procs = []
-# causes this process to kill all of its children when it receieves SIGINT
 def handler(signum, frame):
+    """Handler for Ctrl-C"""
     for proc in procs:
         proc.kill()
     exit(0)

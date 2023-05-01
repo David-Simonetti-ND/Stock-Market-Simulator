@@ -1,4 +1,4 @@
-# Stock Market Simulation Game - Distributed Systems SP23 Final Project
+# StockNet, a Stock Market Simulation Game - Distributed Systems SP23 Final Project
 by David Simonetti and John Lee
 
 ## General Description

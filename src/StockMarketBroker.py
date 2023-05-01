@@ -1,14 +1,17 @@
+# File: StockMarketBroker.py
+# Author: David Simonneti (dsimone2@nd.edu) & John Lee (jlee88@nd.edu) 
+# 
+# Description: Main Load Balancer/Broker server that redistributes tasks
+
 import socket
 import sys
 import time
-import os
 import json
 import select
 import random
-import http.client
 import signal
 from collections import deque 
-from StockMarketLib import format_message, receive_data, lookup_server, print_debug, VALID_TICKERS, StockMarketUser
+from StockMarketLib import format_message, receive_data, lookup_server, print_debug, VALID_TICKERS
 
 class StockMarketBroker:
     def __init__(self, broker_name, num_chains):
@@ -51,14 +54,13 @@ class StockMarketBroker:
         # send information to name server
         self.ns_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.ns_socket.connect(("catalog.cse.nd.edu", 9097))
-        self.ns_update({"type" : "stockmarketbroker", "owner" : "dsimone2", "port" : self.port_number, "project" : self.broker_name})
 
         # connect to simulator
         self.stockmarketsim_sock = self.connect_to_server("stockmarketsim")
         
-        # update the leaderboard every minute 
+        # update the leaderboard & name server every minute 
         signal.signal(signal.SIGALRM, self._update)
-        signal.setitimer(signal.ITIMER_REAL,60, 60) # now and every 60 seconds after
+        signal.setitimer(signal.ITIMER_REAL, .1, 60) # now and every 60 seconds after
 
         # used to set up replication servers
         # each 1 of n replication servers will handle about 1/n of client information/requests
@@ -83,7 +85,11 @@ class StockMarketBroker:
         self.name_to_conn = {}
         # data structure used for measuring the fairness of the broker. maps client number to the number of requests serviced for that client
         self.done = {}
-
+    
+    ##################
+    # Socket Methods #
+    ##################
+    
     def connect_to_server(self, server_type, max_attempts=100):
         """ Connect to given server type on socket 
         Args:
@@ -118,12 +124,26 @@ class StockMarketBroker:
             attempts += 1
         return sock
     
+    def accept_new_connection(self):
+        """Accepts a new connection and adds it to the socket table.
+        """
+        conn, addr = self.socket.accept()
+        conn.settimeout(60)
+        self.socket_table.add(conn)
+    
+    ##################
+    # Signal Handler #
+    ##################
+    
     def _update(self, _, __):
-        self.ns_update({"type" : "stockmarketbroker", "owner" : "dsimone2", "port" : self.port_number, "project" : self.broker_name})
-        self._update_leaderboard(None, None)
+        """ Combined update handler
+        """
+        self._update_ns({"type" : "stockmarketbroker", "owner" : "dsimone2", "port" : self.port_number, "project" : self.broker_name})
+        self._update_leaderboard()
 
-    def _update_leaderboard(self, _, __):
-        ''' updates the leaderboard by polling all connected replicators for their user info.'''
+    def _update_leaderboard(self):
+        ''' updates the leaderboard by polling all connected replicators for their user info.
+        '''
         # snapshot of each ticker's price
         prices = {}
         for t in VALID_TICKERS:
@@ -153,6 +173,19 @@ class StockMarketBroker:
         # sort the users by their net worth
         self.leaderboard = sorted(list([ (username, users[username]) for username in users.keys()]), key = lambda x: x[1], reverse=True)
         print_debug("Leaderboard Updated.")
+    
+    def _update_ns(self, message):
+        """Updates the name server with the current state
+        """
+        # send info to name server
+        self.ns_socket.sendall(json.dumps(message).encode("utf-8"))
+        print_debug("Name Server Updated.")
+        # keep track of last name server update
+        self.last_ns_update = time.time_ns()
+        
+    ######################
+    # Replicator Methods #
+    ######################
 
     def _get_leaderboard(self):
         """reports the top 10 users
@@ -169,25 +202,9 @@ class StockMarketBroker:
         print_debug("\n" + lstring)
         return self.json_resp(True, lstring)
         
-    
-    def accept_new_connection(self):
-        """Accepts a new connection and adds it to the socket table.
-        """
-        conn, addr = self.socket.accept()
-        conn.settimeout(60)
-        self.socket_table.add(conn)
-
-    def ns_update(self, message):
-        """Updates the name server with the current state
-        """
-        # send info to name server
-        self.ns_socket.sendall(json.dumps(message).encode("utf-8"))
-        print_debug("Name Server Updated.")
-        # keep track of last name server update
-        self.last_ns_update = time.time_ns()
-
     def hash(self, string):
-        # returns an integer hash from an input string
+        """returns an integer hash from an input string
+        """
         if not isinstance(string, str):
             raise TypeError("Key must be a string")
         hash = 0
@@ -199,9 +216,13 @@ class StockMarketBroker:
         return hash % 41
     
     def json_resp(self, success, value):
+        """Basic message fmt
+        """
         return {"Success": success, "Value": value}   
     
     def start_request(self, request, conn):
+        """Forwards job request to hashed replicator
+        """
         # if there is no username, we don't know which server to hash to
         if request.get("username", None) == None:
             return self.json_resp(False, "Username required to perform an action")
@@ -238,7 +259,8 @@ class StockMarketBroker:
         return username_hash % self.num_chains
         
     def finalize_request(self, index):
-        # called asynchronously when a replicator is done handling a client request
+        """Asynchronously called when a replicator is done handling a client request
+        """
         status, data = receive_data(self.chain_sockets[index])
         if status == 0 and data:
             response = data
@@ -367,7 +389,6 @@ def main():
                 server.name_to_conn[chain_servicer] = attempted_conn
                 server.pending_conns.add(attempted_conn)
                 server.pending_reqs[key].remove((request, attempted_conn))
-
 
 
 if __name__ == "__main__":

@@ -1,3 +1,8 @@
+# File: StockMarketSimulator.py
+# Author: John Lee (jlee88@nd.edu) & David Simonneti (dsimone2@nd.edu)
+# 
+# Description: Script to start Stock Market Simulator
+
 import random
 from collections import deque
 import time
@@ -8,10 +13,11 @@ import select
 import signal
 import csv
 import sys
-import threading
 from StockMarketLib import format_message, receive_data, print_debug, VALID_TICKERS, SUBSCRIBE_TIMEOUT, GLOBAL_SPEEDUP, MINUTE_SPEEDUP, CLIENT_DELAY
 
-TEST = True
+# Testing Macro for test methods
+# TEST = True
+TEST = False
 
 class StockMarketSimulator:
     """Simulates the Stock Market with the universe of stocks.
@@ -92,7 +98,8 @@ class StockMarketSimulator:
         signal.setitimer(signal.ITIMER_REAL, 0.1, 60) # now and every 60 seconds after
         
     def _update_ns(self, _, __):
-        """Update Name server handler to periodically update name server"""
+        """Update Name server handler to periodically update name server
+        """
         # update msg
         update_msg = {
                     "type" : "stockmarketsim",
@@ -160,17 +167,6 @@ class StockMarketSimulator:
     # Sim Backend #
     ###############
     
-    # def simulate_next_minute(self):
-    #     '''Simulates the next minute's data by using a random walk over a minute bar'''
-    #     self.next_minute = {}
-    #     x = np.arange(0, int(self.minute_rate//self.update_rate + 1) , 1)
-    #     for t in self.tickers:
-    #         min = self.stock_prices[t][self.minute]
-    #         print(min)
-    #         # compute random motions
-    #         self.next_minute[t] = (((float(min[5]) - float(min[2])) / (self.minute_rate/self.update_rate)) * x + float(min[2]) + np.random.normal(0, np.random.uniform(.1, 1.9) * np.abs(float(min[3]) - float(min[4])) + .01, len(x))).round(2)
-    #     self.minute += 1
-
     def simulate_next_minute(self):
         '''Simulates the next minute's data by using a random walk over a minute bar'''
         self.next_minute = {}

@@ -1,24 +1,37 @@
+# File: StockMarketLib.py
+# Author: David Simonneti (dsimone2@nd.edu) & John Lee (jlee88@nd.edu) 
+# 
+# Description: Helper Library for Stock Market Methods
+
 import json
 import http
 import time
+
+###################
+# Macro Variables #
+###################
 
 ## Universe of Stocks
 VALID_TICKERS = ["TSLA", "MSFT", "AAPL", "NVDA", "AMZN"]
 VALID_STOCK_NAMES = ["Tesla", "Microsoft", "Apple", "Nvidia", "Amazon"]
 
-## global speedup
-GLOBAL_SPEEDUP = 1
-# how long is a minute compared to real life
+## global speedup (default 1 = no speedup)
+GLOBAL_SPEEDUP = 1 
+# how long is a minute compared to real life (default 1 = no speedup)
 MINUTE_SPEEDUP = 1 
 # how many publishes clients are delayed stock info for
 CLIENT_DELAY = 5
 
 ## Default Timeout for subscribes
-SUBSCRIBE_TIMEOUT = 10 * (10 ** 9)
+SUBSCRIBE_TIMEOUT = 10 * (1e9)
 
 ## DEBUG Mode
 # DEBUG = True
 DEBUG = False
+
+##############
+# User Class #
+##############
 
 class StockMarketUser:
     """Defines a User for the broker to register
@@ -67,13 +80,15 @@ class StockMarketUser:
             user_str += "-" * 16 + '\n'
         return user_str
 
-# this is a helper library that the broker and endpoint both use
+####################
+# Helper Functions #
+####################
 
-# takes in a json message and returns it in binary format ready to send
-# the format in which messages are passed is as follows
-# {length of request in bytes}\n{request}\n
-# with the newlines being sent as bytes and not the character \ followed by the character n
 def format_message(json_message):
+    """Takes in a json message and returns it in binary format ready to send\n
+        The format in which messages are passed is as follows\n
+        {length of request in bytes}\\n{request}\\n\n
+        with the newlines being sent as bytes and not the character \ followed by the character n"""
     # try to turn the request into json
     try:
         request_str = f"{json.dumps(json_message)}"
@@ -84,10 +99,11 @@ def format_message(json_message):
     encoded_request = f"{request_len}\n{request_str}\n".encode("utf-8")
     return encoded_request
 
-# function that takes a socket and attempts to read a properly formatted message from it
-# returns a tuple where the first element is either a 0 for a success or 1 for a failure
-# and the second element is the error, complete request, or nothing if applicable
+
 def receive_data(socket):
+    """Function that takes a socket and attempts to read a properly formatted message from it,
+    returns a tuple where the first element is either a 0 for a success or 1 for a failure 
+    and the second element is the error, complete request, or nothing if applicable"""
     full_request = ""
     size = -1
     # we might only get part of the message at a time, so try while socket is still open
@@ -146,6 +162,8 @@ def receive_data(socket):
     return (0, request_json)
 
 def lookup_server(broker_name, server_type):
+    """Lookup the Name server
+    """
     timeout = 1
     while True:
         # make http connection to name server and get json formatted info
@@ -174,10 +192,14 @@ def lookup_server(broker_name, server_type):
             timeout *= 2
             continue
         return possible_brokers
-    
+
+###################
+# Debug Functions #
+###################
 
 def print_debug(*values):
-    """prints if debug is true"""
+    """prints if debug is true
+    """
     if DEBUG:
         print("DEBUG:", *values)
         

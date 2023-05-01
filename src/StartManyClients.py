@@ -1,3 +1,8 @@
+# File: StartManyClients.py
+# Author: David Simonneti (dsimone2@nd.edu)
+# 
+# Description: Script to start multiple clients from command line.
+
 import subprocess
 import signal
 import sys
@@ -5,8 +10,9 @@ import time
 import random
 
 procs = []
-# clean up all clients on control-c
+
 def handler(signum, frame):
+    """Handler for Ctrl-C"""
     for proc in procs:
         proc.kill()
     exit(0)
@@ -26,7 +32,7 @@ def main():
 
     # read in names file
     names = []
-    with open("names.txt", "r") as f:
+    with open("data/names.txt", "r") as f:
         names = f.read().split("\n")
 
     # randomly select some names from the pile

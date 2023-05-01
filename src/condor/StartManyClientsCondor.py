@@ -1,3 +1,8 @@
+# File: StartManyClientsCondor.py
+# Author: David Simonneti (dsimone2@nd.edu)
+# 
+# Description: Script to start multiple clients from HTCondor.
+
 import subprocess
 import signal
 import sys
@@ -6,7 +11,7 @@ import random
 
 procs = []
 def handler(signum, frame):
-    # cleanup function
+    """Cleanup function for condor"""
     global procs
     # remove all condor jobs
     subprocess.Popen(["condor_rm", "dsimone2"])
@@ -43,7 +48,7 @@ def main():
 
     # read in random names file
     names = []
-    with open("../names.txt", "r") as f:
+    with open("../data/names.txt", "r") as f:
         names = f.read().split("\n")
 
     # chose a random sample of them to use
