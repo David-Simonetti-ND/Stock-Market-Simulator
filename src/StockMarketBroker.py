@@ -57,15 +57,6 @@ class StockMarketBroker:
 
         # connect to simulator
         self.stockmarketsim_sock = self.connect_to_server("stockmarketsim")
-        # ensure we get one round of stock prices before we start 
-        while self.latest_stock_info == None:
-            status, data = receive_data(self.stockmarketsim_sock)
-            ## error reading from stock market sim
-            if data is None or status == 2:
-                # try to reconnect and go to next loop, since all data was out of date anyways
-                self.stockmarketsim_sock = self.connect_to_server("stockmarketsim")
-                continue
-            self.latest_stock_info = json.loads(data)
         
         # update the leaderboard & name server every minute 
         signal.signal(signal.SIGALRM, self._update)
@@ -94,6 +85,16 @@ class StockMarketBroker:
         self.name_to_conn = {}
         # data structure used for measuring the fairness of the broker. maps client number to the number of requests serviced for that client
         self.done = {}
+
+        # ensure we get one round of stock prices before we start 
+        while self.latest_stock_info == None:
+            status, data = receive_data(self.stockmarketsim_sock)
+            ## error reading from stock market sim
+            if data is None or status == 2:
+                # try to reconnect and go to next loop, since all data was out of date anyways
+                self.stockmarketsim_sock = self.connect_to_server("stockmarketsim")
+                continue
+            self.latest_stock_info = json.loads(data)
     
     ##################
     # Socket Methods #
