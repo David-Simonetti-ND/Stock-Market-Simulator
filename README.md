@@ -16,21 +16,34 @@ To add interesting behavior to our system:
 
 ## Goals
 We three main goals for our system:
-    - Persistence/Consistency
+    1. Persistence/Consistency
         - A client should be able to disconnect and reconnect using the same account and continiue playing from where they left off
         - The broker should be able to recover, should it go down
-    - Throughput
+    2. Throughput
         - We wish to maximize the total operations per second fo all clients
-    - Latency
+    3. Latency
         - In conjunction with maximizing throughput, we wish to minimize the latency of a single client's buy/sell operations
         - We wish to maintain fairness between low-frequency and high-frequency traders.
+
+
+## Architecture
+
+
+## Evaluation
+We evaluted our system according to our 3 goals above:
+
+#### Consistency
+While we do not test the client-side (since our logging system should ensure that), we test what happens when our replication system crashes. In this plot, we observe that initially, our servers are servicing clients. At 10 seconds in, we crash all replicators and observe that no clients are being serviced. During this time, our replication manager goes through and restarts our replicators so that at ~23 seconds in all our clients can be serviced again.
+
+![image](results/img/Consistency.png)
 
 ## Running Code
 
 ????????????????????????
 No clue bruh
 
+## Presentation
+The powerpoint presentation summarizing our system and evaluation can be downloaded [here](results/StockNet%20Presentation.pptx).
 
-## [Presentation](results/StockNet%20Presentation.pptx)
-
-## [Final Paper](None)
+## Final Paper
+The final paper is located [here](None).
