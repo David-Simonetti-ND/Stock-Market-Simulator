@@ -75,47 +75,115 @@ Furthermore, since we implement a pub/sub scheme that might result in temporaril
 
 ## Running Code
 
+(basic)
+Running on the student machines:
+Running on the student machines is the easiest to get an overview of all the parts of the system, but the performance will be pretty bad because the number of replicators will be limited to the number of machines that exist. Running multiple replicators on the same machine is possible but doesn't result in much throughput gain. There is no specific version of python required with any sort of dependencies, just any python version 3.9 and above.
+
+To run StockNet, start 4 different terminals connected to student machines. They can be all the same student machine or all different.
+e.g. 
+Terminal number -> remote machine
+1 -> student12
+2 -> student12
+3 -> student11
+4 -> student10
+From here, navigate to the Stock-Market-Simulator (wherever you cloned the github repository to) and cd into the src directory on all four terminals.
+
+On terminal 1, run the following command
+`python3 StockMarketSimulator.py stock`
+This will start the simulator on project name "stock". You can change the project name by changing the argument to the simulator.
+
+On terminal 2, run the following command
+`python3 StockMarketBroker.py stock 1`
+This will create a broker on project name "stock" that is looking for 1 replicator to connect to. Make sure that the project names match for all of the servers.
+
+On terminal 3, run the following command
+`python3 Replicator.py stock 0`
+This will create a replicator with an id of 0. Because the broker is only looking for 1 replicator, it will search for one with id 0 which is the replicator running on terminal 3.
+
+On terminal 4 run the following command
+`python3 ../tests/test_random.py stock test_name`
+This will create a client with the name test_name and it will connect to the broker and begin making trades.
+
+To play around with this further, there are a variety of options to change.
+On terminal 3, one can instead run 
+`python3 StartManyReplicators.py stock 10`
+This will start 10 replicators all running on the same machine. Make sure to then restart the broker with an argument of 10 on the command line.
+This will change the system so that now 10 replicators are connected to the broker and sharing the load of client information. Now of course they are all on the same machine so the throughput increase will be minimal. 
+
+In addition, one could run many replicators on many different student machines to achieve the same effect.
+For example, one could start the broker on student10 with
+`python3 StockMarketBroker.py stock 2`
+
+One could start one replicator on student11 with
+`python3 Replicator.py stock 0`
+
+And other replicator on student12 with
+`python3 Replicator.py stock 1`
+
+Because the broker is looking for 2 replicators, it is looking for replicators with names 0 and 1, which are started on student11 and student12 respectively.
+
+One could also increase the number of clients connected by going to Stock-Market-Simulator/src and running
+`python3 StartManyClientsCondor.py stock 10 ../../tests/test_hft.py`
+This will create 10 clients running the hft trading program. One can vary the number of clients specified here in order to see the varying effects.
+
+Once the system is up and running, any part of it can crash and it will recover successfully.
+For example, once the system is up and running, one could go in and crash the broker, restart it, and the system will quickly pick right back up where it left off.
+Clients can crash and reconnect, more clients can join, and clients can leave the simulation permenantly.
+The only caveat is that the number of replicators is fixed for the given simulation run. Once the broker has a number of replicators specified, the whole system must be stopped in order to change that number.
+
+
 (Advanced)
 Running using condor:
 
 To run StockNet on condor, there are a couple of initialization steps to get it working.
 First, clone this github repository somewhere in your /scratch365/$USER/ directory.
 Once there, navigate into the Stock-Market-Simulator directory and run the following command:
-`conda env create --prefix /scratch365/$USER/stock_conda --file environment.yml `
+`conda env create --prefix /scratch365/$USER/stock_conda --file environment.yml`
 This will create the prerequisite conda environment needed for the condor jobs to run.
 The command might take some time to run (creating a conda environment can be pretty slow).
 
 Once this is complete, you are ready to run StockNet with condor jobs!
 In order to run the system, please open four different terminal windows.
-Connect the first two to different CRC machines (for example, disc01 and disc02)
+Connect the first two to different CRC machines (for example, disc01 and disc02). 
 Connect the second two to condorfe
+e.g. 
+Terminal number -> remote machine
+1 -> disc01
+2 -> disc02
+3 -> condorfe
+4 -> condorfe
 On the first terminal window (disc01), navigate to the Stock-Market-Simulator directory (where you cloned the github repo)
 Then cd into src, and run
 `python3 StockMarketSimulator.py stock`
-To run this, you can use the conda environment created by conda up above, or any equivalent python3 (no dependencies required)
-This will start the simulator on project name "stock"
+To run this and all of the following programs, you can use the conda environment created by conda up above, or any equivalent python3 (no dependencies required)
+This will start the simulator on project name "stock". You can change the project name by changing the argument to the simulator.
 
 On the second terminal (disc02), navigate to the Stock-Market-Simulator/src directory
 Once there, run the following command
 `python3 StockMarketBroker.py stock 10`
-This will create a broker on project name "stock" that is looking for 10 replicators to connect to
+This will create a broker on project name "stock" that is looking for 10 replicators to connect to. Make sure that the project names match for all of the servers.
 
 On the third terminal (condorfe), navigate to the Stock-Market-Simulator/src/condor directory.
 Once there, run the following command
 `python3 StartManyReplicatorsCondor.py stock 10`
-This will start 10 condor jobs to run 1 replicator each. They will automatically connect to the broker when they are eventually scheduled to run
+This will start 10 condor jobs to run 1 replicator each. They will automatically connect to the broker when they are eventually scheduled to run.
+In our testing, it can be up to 30s before the jobs begin running and connect to the broker. 
 
 On the fourth terminal (condorfe), navigate to the Stock-Market-Simulator/src/condor directory.
 Once there, run the following command
 `python3 StartManyClientsCondor.py stock 10 ../../tests/test_hft.py`
 This will start 10 condor jobs to each run 1 test_hft.py client program. After a short while, they should connect to the broker and begin trading.
+Again, in our testing, it can be up to 30s before all clients are started and able to connect, so the broker might appear to be slow at first.
 
 Once the system is working, the broker will start outputing throughput messages indicating how much requests it is able to serve.
 One can crash any part of the system (simulator, broker, replicators, clients) and the system will eventually get back into a working state.
 If one manually crashes the condor jobs, the replicator manager/client manager program will automatically restart them for you.
 Otherwise, for the broker and simulator they have to be manually restarted if they are crashed.
+Clients can be added and removed at will during the program execution. However, the number of replicators is fixed per run.
+If one desires to change the number of replicators in the system, they must restart the simulation from scratch.
 
-
+Once this is working, you can vary the number of clients/replicators and see the effect that it has on the system. 
+Just ensure that the number of replicators started matches the number specified on the command line for the broker.
 
 ## Presentation
 The powerpoint presentation summarizing our system and evaluation can be downloaded [here](results/StockNet%20Presentation.pptx).
