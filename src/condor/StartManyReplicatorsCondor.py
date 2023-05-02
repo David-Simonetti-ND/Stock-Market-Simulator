@@ -26,6 +26,11 @@ def main():
     except Exception:
         print("Error: the number of clients must be an integer")
         exit(1)
+    
+    try:
+        os.mkdir("output")
+    except Exception:
+        pass
 
     # command to be placed in a condor submit file to start a replicator job
     condor_command = '''
@@ -37,6 +42,8 @@ def main():
     request_memory = 2048
     request_disk   = 4096
 
+    error   = output/err.{chain_number}
+    output  = output/out.{chain_number}
     log     = log.{chain_number}
     queue 1
     '''
@@ -51,6 +58,10 @@ def main():
         with open(f"table{i}.ckpt", "w") as f:
             f.write("0\n")
         with open(f"table{i}.txn", "w") as f:
+            pass
+        with open(f"output/err.{i}", "w") as f:
+            pass
+        with open(f"output/out.{i}", "w") as f:
             pass
         with open(f"log.{i}", "w") as f:
             pass
