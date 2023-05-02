@@ -87,10 +87,12 @@ The command might take some time to run (creating a conda environment can be pre
 
 Once this is complete, you are ready to run StockNet with condor jobs!
 In order to run the system, please open four different terminal windows.
-You can use the environment created by conda up above, or any equivalent python3 (no dependencies required)
+Connect the first two to different CRC machines (for example, disc01 and disc02)
+Connect the second two to condorfe
 On the first terminal window, navigate to the Stock-Market-Simulator directory (where you cloned the github repo)
 Then cd into src, and run
 `python3 StockMarketSimulator.py stock`
+To run this, you can use the conda environment created by conda up above, or any equivalent python3 (no dependencies required)
 This will start the simulator on project name "stock"
 
 On the second terminal, navigate to the Stock-Market-Simulator/src/condor directory.

@@ -37,8 +37,6 @@ def main():
     request_memory = 2048
     request_disk   = 4096
 
-    error   = output/err.{chain_number}
-    output  = output/out.{chain_number}
     log     = log.{chain_number}
     queue 1
     '''
