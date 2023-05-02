@@ -141,7 +141,7 @@ The only caveat is that the number of replicators is fixed for the given simulat
 Running using condor:
 
 To run StockNet on condor, there are a couple of initialization steps to get it working.
-First, clone this github repository somewhere in your /scratch365/$USER/ directory.
+First, clone this github repository somewhere in your `/scratch365/$USER/` directory.
 Once there, navigate into the Stock-Market-Simulator directory and run the following command:
 `conda env create --prefix /scratch365/$USER/stock_conda --file environment.yml`
 This will create the prerequisite conda environment needed for the condor jobs to run.
@@ -151,12 +151,17 @@ Once this is complete, you are ready to run StockNet with condor jobs!
 In order to run the system, please open four different terminal windows.
 Connect the first two to different CRC machines (for example, disc01 and disc02). 
 Connect the second two to condorfe
-e.g. 
-Terminal number -> remote machine
+
+e.g. Terminal number -> remote machine
+
 1 -> disc01
+
 2 -> disc02
+
 3 -> condorfe
+
 4 -> condorfe
+
 On the first terminal window (disc01), navigate to the Stock-Market-Simulator directory (where you cloned the github repo)
 Then cd into src, and run
 `python3 StockMarketSimulator.py stock`
