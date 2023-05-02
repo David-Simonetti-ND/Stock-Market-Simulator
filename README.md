@@ -89,14 +89,32 @@ Once this is complete, you are ready to run StockNet with condor jobs!
 In order to run the system, please open four different terminal windows.
 Connect the first two to different CRC machines (for example, disc01 and disc02)
 Connect the second two to condorfe
-On the first terminal window, navigate to the Stock-Market-Simulator directory (where you cloned the github repo)
+On the first terminal window (disc01), navigate to the Stock-Market-Simulator directory (where you cloned the github repo)
 Then cd into src, and run
 `python3 StockMarketSimulator.py stock`
 To run this, you can use the conda environment created by conda up above, or any equivalent python3 (no dependencies required)
 This will start the simulator on project name "stock"
 
-On the second terminal, navigate to the Stock-Market-Simulator/src/condor directory.
-Once there, 
+On the second terminal (disc02), navigate to the Stock-Market-Simulator/src directory
+Once there, run the following command
+`python3 StockMarketBroker.py stock 10`
+This will create a broker on project name "stock" that is looking for 10 replicators to connect to
+
+On the third terminal (condorfe), navigate to the Stock-Market-Simulator/src/condor directory.
+Once there, run the following command
+`python3 StartManyReplicatorsCondor.py stock 10`
+This will start 10 condor jobs to run 1 replicator each. They will automatically connect to the broker when they are eventually scheduled to run
+
+On the fourth terminal (condorfe), navigate to the Stock-Market-Simulator/src/condor directory.
+Once there, run the following command
+`python3 StartManyClientsCondor.py stock 10 ../../tests/test_hft.py`
+This will start 10 condor jobs to each run 1 test_hft.py client program. After a short while, they should connect to the broker and begin trading.
+
+Once the system is working, the broker will start outputing throughput messages indicating how much requests it is able to serve.
+One can crash any part of the system (simulator, broker, replicators, clients) and the system will eventually get back into a working state.
+If one manually crashes the condor jobs, the replicator manager/client manager program will automatically restart them for you.
+Otherwise, for the broker and simulator they have to be manually restarted if they are crashed.
+
 
 
 ## Presentation
