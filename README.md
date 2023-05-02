@@ -75,8 +75,27 @@ Furthermore, since we implement a pub/sub scheme that might result in temporaril
 
 ## Running Code
 
-????????????????????????
-No clue bruh
+(Advanced)
+Running using condor:
+
+To run StockNet on condor, there are a couple of initialization steps to get it working.
+First, clone this github repository somewhere in your /scratch365/$USER/ directory.
+Once there, navigate into the Stock-Market-Simulator directory and run the following command:
+`conda env create --prefix /scratch365/$USER/stock_conda --file environment.yml `
+This will create the prerequisite conda environment needed for the condor jobs to run.
+The command might take some time to run (creating a conda environment can be pretty slow).
+
+Once this is complete, you are ready to run StockNet with condor jobs!
+In order to run the system, please open four different terminal windows.
+You can use the environment created by conda up above, or any equivalent python3 (no dependencies required)
+On the first terminal window, navigate to the Stock-Market-Simulator directory (where you cloned the github repo)
+Then cd into src, and run
+`python3 StockMarketSimulator.py stock`
+This will start the simulator on project name "stock"
+
+On the second terminal, navigate to the Stock-Market-Simulator/src/condor directory.
+Once there, 
+
 
 ## Presentation
 The powerpoint presentation summarizing our system and evaluation can be downloaded [here](results/StockNet%20Presentation.pptx).

@@ -7,11 +7,12 @@ import subprocess
 import sys
 import signal
 import time
+import os
 
 procs = []
 def handler(signum, frame):
     """Cleanup function for condor jobs"""
-    subprocess.Popen(["condor_rm", "dsimone2"])
+    subprocess.Popen(["condor_rm", os.environ.get('USER')])
     for proc in procs:
         proc.kill()
     exit(0)
@@ -28,8 +29,8 @@ def main():
 
     # command to be placed in a condor submit file to start a replicator job
     condor_command = '''
-    executable     = /scratch365/dsimone2/scratch_conda/bin/python3 
-    arguments      = "/scratch365/dsimone2/distsys/Stock-Market-Simulator/src/Replicator.py {project_name} {chain_number}" 
+    executable     = /scratch365/{user}/stock_conda/bin/python3 
+    arguments      = "../Replicator.py {project_name} {chain_number}" 
     should_transfer_files=yes
     transfer_input_files = table{chain_number}.ckpt, table{chain_number}.txn, table.ckpt.shadow
     request_cpus   = 1
@@ -56,7 +57,7 @@ def main():
         with open(f"log.{i}", "w") as f:
             pass
         with open(f"job{i}.txt", "w") as f:
-            f.write(condor_command.format(project_name = sys.argv[1], chain_number = i))
+            f.write(condor_command.format(project_name = sys.argv[1], chain_number = i, user=os.environ.get('USER')))
         log_files.append(open(f"log.{i}", "r"))
 
     # start the actual jobs

@@ -8,21 +8,22 @@ import signal
 import sys
 import time
 import random
+import os
 
 procs = []
 def handler(signum, frame):
     """Cleanup function for condor"""
     global procs
     # remove all condor jobs
-    subprocess.Popen(["condor_rm", "dsimone2"])
+    subprocess.Popen(["condor_rm", os.environ.get('USER')])
     # kill all child processes
     for proc in procs:
         proc.kill()
     exit(0)
  
 def main():
-    if len(sys.argv) != 3:
-        print("Error: please enter project name, number of clients to start")
+    if len(sys.argv) != 4:
+        print("Error: please enter project name, number of clients to start, and the path to the client program to run")
         exit(1)
     try:
         num_clients = int(sys.argv[2])
@@ -35,8 +36,8 @@ def main():
     # the condor command to be written out into a submit file to start a single client job
     # to change the client program to be run, change test_random_player.py to whatever is desired
     condor_command = '''
-    executable     = /scratch365/dsimone2/scratch_conda/bin/python3 
-    arguments      = "/scratch365/dsimone2/distsys/Stock-Market-Simulator/tests/test_random_player.py {project_name} {username}" 
+    executable     = /scratch365/{user}/stock_conda/bin/python3 
+    arguments      = "{client_path} {project_name} {username}" 
     request_cpus   = 1
     request_memory = 2048
     request_disk   = 4096
@@ -59,7 +60,7 @@ def main():
     for i in range(num_clients):
         # write the submit file
         with open(f"client{i}.txt", "w") as f:
-            f.write(condor_command.format(project_name = sys.argv[1], username = chosen_names[i]))
+            f.write(condor_command.format(project_name = sys.argv[1], username = chosen_names[i], user=os.environ.get('USER'), client_path=sys.argv[3]))
         # create the log file
         with open(f"client_log.{chosen_names[i]}.log", "w") as f:
             pass
