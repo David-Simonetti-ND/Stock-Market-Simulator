@@ -81,16 +81,6 @@ Running on the student machines is the easiest to get an overview of all the par
 
 To run StockNet, start 4 different terminals connected to student machines. They can be all the same student machine or all different.
 
-e.g. Terminal number -> remote machine
-
-1 -> student12
-
-2 -> student12
-
-3 -> student11
-
-4 -> student10
-
 From here, navigate to the Stock-Market-Simulator (wherever you cloned the github repository to) and cd into the src directory on all four terminals.
 
 On terminal 1, run the following command
@@ -149,18 +139,8 @@ The command might take some time to run (creating a conda environment can be pre
 
 Once this is complete, you are ready to run StockNet with condor jobs!
 In order to run the system, please open four different terminal windows.
-Connect the first two to different CRC machines (for example, disc01 and disc02). 
-Connect the second two to condorfe
-
-e.g. Terminal number -> remote machine
-
-1 -> disc01
-
-2 -> disc02
-
-3 -> condorfe
-
-4 -> condorfe
+Connect windows 1-2 to different CRC machines (for example, disc01 and disc02). 
+Connect windows 3-4 to condorfe
 
 On the first terminal window (disc01), navigate to the Stock-Market-Simulator directory (where you cloned the github repo)
 Then cd into src, and run
