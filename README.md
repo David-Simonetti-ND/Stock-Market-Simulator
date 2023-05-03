@@ -75,6 +75,13 @@ Furthermore, since we implement a pub/sub scheme that might result in temporaril
 
 ## Running Code
 
+To set up the environment, for every unique filesystem used, run the following commands
+```
+1. git clone https://github.com/David-Simonetti-ND/Stock-Market-Simulator.git (git@github.com:David-Simonetti-ND/Stock-Market-Simulator.git for ssh servers)
+2. cd Stock-Market-Simulator/src
+```
+
+
 ### Running on Student Machines:
 
 Running on the student machines is the easiest to get an overview of all the parts of the system, but the performance will be pretty bad because the number of replicators will be limited to the number of machines that exist. Running multiple replicators on the same machine is possible but doesn't result in much throughput gain. There is no specific version of python required with any sort of dependencies, just any python version 3.9 and above.
@@ -83,7 +90,7 @@ To run StockNet, start 4 different terminals connected to student machines. They
 
 From here, navigate to the Stock-Market-Simulator (wherever you cloned the github repository to) and `cd src` into the src directory on all four terminals.
 
-##### Single Replicator
+#### Single Replicator (Basic)
 
 On terminal 1, run the following command:
 `python3 StockMarketSimulator.py <proj_name>`
@@ -102,6 +109,7 @@ On terminal 4 run the following command:
 This will create a client with the name test_name and it will connect to the broker and begin making trades.
 
 
+#### Multiple Replicators (Single Machine)
 To play around with this further, there are a variety of options to change.
 
 On terminal 3, one can instead run 
@@ -112,6 +120,7 @@ On terminal 2, the broker must be restarted using the same number of servers:
 
 This will change the system so that now `<n_servers>` replicators are connected to the broker and sharing the load of client information. Now of course, they are all on the same machine so the throughput increase will be minimal. 
 
+#### Multiple Replicators (Multiple Machines)
 
 In addition, one could run many replicators on many different student machines to achieve the same effect.
 For example, one could start the broker on student10 with
@@ -125,8 +134,10 @@ And other replicator on student12 with
 
 Because the broker is looking for 2 replicators, it is looking for replicators with names 0 and 1, which are started on student11 and student12 respectively.
 
-One could also increase the number of clients connected by going to Stock-Market-Simulator/src and running
-`python3 StartManyClientsCondor.py stock 10 ../../tests/test_hft.py`
+#### Multiple Clients
+
+For any of the configurations above, one could also increase the number of clients connected by running
+`python3 StartManyClients.py stock 10 ../../tests/test_hft.py`
 This will create 10 clients running the hft trading program. One can vary the number of clients specified here in order to see the varying effects.
 
 Once the system is up and running, any part of it can crash and it will recover successfully.
