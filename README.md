@@ -81,12 +81,24 @@ To set up the environment, for every unique filesystem used, run the following c
 2. cd Stock-Market-Simulator/src
 ```
 
+### Clients
+
+There are several test scripts that can be used as a client.
+1. `../../tests/test_hft.py` - a high-frequency trader that sends buy/sell requests as fast as possible (no stdout)
+2. `../../tests/test_lft.py` - a low-frequency trader that sends buy/sell requests every 1 second (no stdout)
+3. `../../tests/test_random_player.py` - a random LFT trader that randomly sends buy/sell requests of 1-15 stocks.
+4. `../../tests/test_john_player.py` - a LFT trader that implements John's custom strategy
+5. `../../tests/test_david_player.py` - a LFT trader that implements David's custom strategy
+6. `../../tests/test_interactive.py` - an interactive trader for demonstration purposes
+
 
 ### Running on Student Machines:
 
-Running on the student machines is the easiest to get an overview of all the parts of the system, but the performance will be pretty bad because the number of replicators will be limited to the number of machines that exist. Running multiple replicators on the same machine is possible but doesn't result in much throughput gain. There is no specific version of python required with any sort of dependencies, just any python version 3.9 and above.
+running on the student machines is the easiest to get an overview of all the parts of the system, but the performance is poor because the number of replicators will be limited to the number of machines that exist. Running multiple replicators on the same machine is possible but doesn't result in much throughput gain.
 
-To run StockNet, start 4 different terminals connected to student machines. They can be all the same student machine or all different.
+Ensure you have python 3.9+ installed on the student machines.
+
+To run StockNet, start 4 different terminals connected to various student machines. They can be all the same student machine or all different.
 
 From here, navigate to the Stock-Market-Simulator (wherever you cloned the github repository to) and `cd src` into the src directory on all four terminals.
 
@@ -105,8 +117,9 @@ On terminal 3, run the following command:
 This will create a replicator with an id of 0. Because the broker is only looking for 1 replicator, it will search for one with id 0 which is the replicator running on terminal 3.
 
 On terminal 4 run the following command:
-`python3 ../tests/test_random.py <proj_name> <client_name>`
-This will create a client with the name test_name and it will connect to the broker and begin making trades.
+`python3 <path_to_test> <proj_name> <client_name>`
+`<path_to_test>` can be any of the clients mentioned in the Clients section.
+This will create a client with the name `<client_name>` and it will connect to the broker.
 
 
 #### Multiple Replicators (Single Machine)
@@ -121,7 +134,6 @@ On terminal 2, the broker must be restarted using the same number of servers:
 This will change the system so that now `<n_servers>` replicators are connected to the broker and sharing the load of client information. Now of course, they are all on the same machine so the throughput increase will be minimal. 
 
 #### Multiple Replicators (Multiple Machines)
-
 In addition, one could run many replicators on many different student machines to achieve the same effect.
 For example, one could start the broker on student10 with
 `python3 StockMarketBroker.py stock 2`
@@ -137,8 +149,11 @@ Because the broker is looking for 2 replicators, it is looking for replicators w
 #### Multiple Clients
 
 For any of the configurations above, one could also increase the number of clients connected by running
-`python3 StartManyClients.py stock 10 ../../tests/test_hft.py`
-This will create 10 clients running the hft trading program. One can vary the number of clients specified here in order to see the varying effects.
+`python3 StartManyClients.py stock <n_clients> <path_to_test>`
+This will create `<n_clients>` clients running the `<path_to_test>` program.
+`<path_to_test>` can be any path in the Clients section, except for the interactive client.
+
+#### Crashing Servers
 
 Once the system is up and running, any part of it can crash and it will recover successfully.
 For example, once the system is up and running, one could go in and crash the broker, restart it, and the system will quickly pick right back up where it left off.
