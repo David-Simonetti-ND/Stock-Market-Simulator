@@ -94,7 +94,7 @@ There are several test scripts that can be used as a client.
 
 ### Running on Student Machines:
 
-running on the student machines is the easiest to get an overview of all the parts of the system, but the performance is poor because the number of replicators will be limited to the number of machines that exist. Running multiple replicators on the same machine is possible but doesn't result in much throughput gain.
+Running on the student machines is the easiest to get an overview of all the parts of the system, but the performance is poor because the number of replicators will be limited to the number of machines that exist. Running multiple replicators on the same machine is possible but doesn't result in much throughput gain.
 
 Ensure you have python 3.9+ installed on the student machines.
 
@@ -106,20 +106,20 @@ From here, navigate to the Stock-Market-Simulator (wherever you cloned the githu
 
 On terminal 1, run the following command:
 `python3 StockMarketSimulator.py <proj_name>`
-This will start the simulator on project name "stock". You can change the project name by changing the argument to the simulator.
+- This will start the simulator on project name "stock". You can change the project name by changing the argument to the simulator.
 
 On terminal 2, run the following command:
 `python3 StockMarketBroker.py <proj_name> 1`
-This will create a broker on project name "stock" that is looking for 1 replicator to connect to. Make sure that the project names match for all of the servers.
+- This will create a broker on project name "stock" that is looking for 1 replicator to connect to. Make sure that the project names match for all of the servers.
 
 On terminal 3, run the following command:
 `python3 Replicator.py <proj_name> 0`
-This will create a replicator with an id of 0. Because the broker is only looking for 1 replicator, it will search for one with id 0 which is the replicator running on terminal 3.
+- This will create a replicator with an id of 0. Because the broker is only looking for 1 replicator, it will search for one with id 0 which is the replicator running on terminal 3.
 
 On terminal 4 run the following command:
 `python3 <path_to_test> <proj_name> <client_name>`
 `<path_to_test>` can be any of the clients mentioned in the Clients section.
-This will create a client with the name `<client_name>` and it will connect to the broker.
+- This will create a client with the name `<client_name>` and it will connect to the broker.
 
 
 #### Multiple Replicators (Single Machine)
