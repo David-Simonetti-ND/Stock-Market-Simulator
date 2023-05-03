@@ -231,7 +231,7 @@ class StockMarketSimulator:
 
         for sub_sock in self.sub_table:
             self.pub_socket.sendto(message.encode("utf-8"), sub_sock[0])
-            print(sub_sock)
+            print(sub_sock, message)
             
         if TEST:
             end = time.time_ns()
