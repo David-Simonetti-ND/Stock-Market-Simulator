@@ -75,12 +75,6 @@ Furthermore, since we implement a pub/sub scheme that might result in temporaril
 
 ## Running Code
 
-To set up the environment, for every unique filesystem used, run the following commands
-```
-1. git clone https://github.com/David-Simonetti-ND/Stock-Market-Simulator.git (git@github.com:David-Simonetti-ND/Stock-Market-Simulator.git for ssh servers)
-2. cd Stock-Market-Simulator/src
-```
-
 ### Clients
 
 There are several test scripts that can be used as a client.
@@ -96,11 +90,15 @@ There are several test scripts that can be used as a client.
 
 Running on the student machines is the easiest to get an overview of all the parts of the system, but the performance is poor because the number of replicators will be limited to the number of machines that exist. Running multiple replicators on the same machine is possible but doesn't result in much throughput gain.
 
+To set up the environment, run the following commands
+```
+1. git clone https://github.com/David-Simonetti-ND/Stock-Market-Simulator.git (git@github.com:David-Simonetti-ND/Stock-Market-Simulator.git for ssh servers)
+2. cd Stock-Market-Simulator/src
+```
+
 Ensure you have python 3.9+ installed on the student machines.
 
 To run StockNet, start 4 different terminals connected to various student machines. They can be all the same student machine or all different.
-
-From here, navigate to the Stock-Market-Simulator (wherever you cloned the github repository to) and `cd src` into the src directory on all four terminals.
 
 #### Single Replicator (Basic)
 
@@ -166,16 +164,23 @@ The only caveat is that the number of replicators is fixed for the given simulat
 ### Running using Condor:
 
 To run StockNet on condor, there are a couple of initialization steps to get it working.
-First, clone this github repository somewhere in your `/scratch365/$USER/` directory.
-Once there, navigate into the Stock-Market-Simulator directory and run the following command:
-`conda env create --prefix /scratch365/$USER/stock_conda --file environment.yml`
-This will create the prerequisite conda environment needed for the condor jobs to run.
-The command might take some time to run (creating a conda environment can be pretty slow).
+
+
+
+To set up the environment, run the following commands
+```
+1. cd /scratch365/$USER/
+2. git clone https://github.com/David-Simonetti-ND/Stock-Market-Simulator.git (git@github.com:David-Simonetti-ND/Stock-Market-Simulator.git for ssh servers)
+3. cd Stock-Market-Simulator/src
+4. conda env create --prefix /scratch365/$USER/stock_conda --file environment.yml
+```
+The conda environment is a prerequisite needed for the condor jobs to run.
 
 Once this is complete, you are ready to run StockNet with condor jobs!
+
 In order to run the system, please open four different terminal windows.
-Connect windows 1-2 to different CRC machines (for example, disc01 and disc02). 
-Connect windows 3-4 to condorfe
+Connect windows 1-2 to different CRC machines (for example, disc01.crc.nd.edu and disc02.crc.nd.edu). 
+Connect windows 3-4 to condorfe.crc.nd.edu
 
 On the first terminal window (disc01), navigate to the Stock-Market-Simulator directory (where you cloned the github repo)
 Then cd into src, and run
