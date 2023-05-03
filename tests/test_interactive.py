@@ -29,7 +29,7 @@ def main():
     # wait for first data to come in.
     while sm.get_stock_update()['time'] == 0:
         print(sm.get_stock_update())
-        pass
+        time.sleep(1)
     
     while True:
         inp = input("> ")
