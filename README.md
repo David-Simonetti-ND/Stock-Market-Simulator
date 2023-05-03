@@ -128,6 +128,7 @@ To play around with this further, there are a variety of options to change.
 On terminal 3, one can instead run 
 `python3 StartManyReplicators.py <proj_name> <n_servers>`
 - This will start `<n_servers>` replicators all running on the same machine. Make sure to then restart the broker with an argument of 10 on the command line.
+
 On terminal 2, the broker must be restarted using the same number of servers:
 `python3 StockMarketBroker.py <proj_name> <n_servers>`
 - This ensures the broker is now looking for `<n_servers>`
@@ -151,8 +152,8 @@ Because the broker is looking for 2 replicators, it is looking for replicators w
 
 For any of the configurations above, one could also increase the number of clients connected by running
 `python3 StartManyClients.py stock <n_clients> <path_to_test>`
-This will create `<n_clients>` clients running the `<path_to_test>` program.
-`<path_to_test>` can be any path in the Clients section, except for the interactive client.
+- This will create `<n_clients>` clients running the `<path_to_test>` program.
+- `<path_to_test>` can be any path in the Clients section, except for the interactive client.
 
 #### Crashing Servers
 
