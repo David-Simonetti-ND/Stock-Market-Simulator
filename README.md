@@ -54,7 +54,7 @@ While we do not test the client-side (since our logging system should ensure tha
 ![consistency](results/img/Consistency.png)
 
 #### Throughput
-We test the total throughput of our system on 50, 100, 200, and 500 clients using a different number of replication servers. Initially, from 1-15 replication servers, the total throughput increases drastically for all clients. Then it starts leveling off. In an ideal system, we would only see this leveling off when the number of clients reaches the number of servers, since each server would begin handling more than 1 client. However, since we only have 1 load balancer, it is a source of bottleneck for our system.
+We test the total throughput of our system on 50, 100, 200, and 500 clients using a different number of replication servers. Initially, from 1-15 replication servers, the total throughput increases drastically for all clients. Then it starts leveling off. In an ideal system, we would only see this leveling off when the number of clients reaches the number of servers, since each server would begin handling more than 1 client. However, since requests must pass through a single broker, we believe it is a source of bottleneck for our system. The total throughput cannot increase beyond the concurrency capabilities of the broker.
 
 ![throughput](results/img/Throughput.png)
 
@@ -72,6 +72,13 @@ Furthermore, since we implement a pub/sub scheme that might result in temporaril
 
 ![sim_time](results/img/PubOverTime.png)
 
+#### Strategies
+
+Since the main motivation of building StockNet was to provide an entertaining competition between strategies, we implemented 3 different strategies. The first strategy (R1-R7) is purely a random client who chooses to either buy or sell once every second. It uniformly selects 1-15 shares of a random stock to perform the operation on. The second strategy (John) was developed by John Lee. Essentially, for the first 100 publishes, it tracks the probability of each stock to go up or down as well as by how much. It then computes the expected value of each stock, selects the highest value, and all-ins on that choice for the next 500 publishes. The final strategy (David), takes the second strategy and inverses it by selecting the worst expected value stock.
+
+While this plot is purely for amusement, we can see that despite all the effort put into the original strategy by John, it gets significantly outperformed by David's strategy, as well as all the random clients.
+
+![strategies](results/img/Strategies.png)
 
 ## Running Code
 
