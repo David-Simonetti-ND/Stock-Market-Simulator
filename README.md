@@ -165,9 +165,9 @@ The only caveat is that the number of replicators is fixed for the given simulat
 
 To run StockNet on condor, there are a couple of initialization steps to get it working.
 
+First, make sure you have access to a `scratch365` account
 
-
-To set up the environment, run the following commands
+Then, to set up the environment, run the following commands
 ```
 1. cd /scratch365/$USER/
 2. git clone https://github.com/David-Simonetti-ND/Stock-Market-Simulator.git (git@github.com:David-Simonetti-ND/Stock-Market-Simulator.git for ssh servers)
@@ -182,29 +182,31 @@ In order to run the system, please open four different terminal windows.
 Connect windows 1-2 to different CRC machines (for example, disc01.crc.nd.edu and disc02.crc.nd.edu). 
 Connect windows 3-4 to condorfe.crc.nd.edu
 
-On the first terminal window (disc01), navigate to the Stock-Market-Simulator directory (where you cloned the github repo)
-Then cd into src, and run
-`python3 StockMarketSimulator.py stock`
-To run this and all of the following programs, you can use the conda environment created by conda up above, or any equivalent python3 (no dependencies required)
-This will start the simulator on project name "stock". You can change the project name by changing the argument to the simulator.
+#### Running via Condor Jobs
 
-On the second terminal (disc02), navigate to the Stock-Market-Simulator/src directory
-Once there, run the following command
-`python3 StockMarketBroker.py stock 10`
-This will create a broker on project name "stock" that is looking for 10 replicators to connect to. Make sure that the project names match for all of the servers.
+On the first terminal window (disc01) run
+`python3 StockMarketSimulator.py <proj_name>`
+- To run this and all of the following programs, you can use the conda environment created by conda up above, or any equivalent python3 (no dependencies required)
+- This will start the simulator on `<proj_name>`.
 
-On the third terminal (condorfe), navigate to the Stock-Market-Simulator/src/condor directory.
-Once there, run the following command
-`python3 StartManyReplicatorsCondor.py stock 10`
-This will start 10 condor jobs to run 1 replicator each. They will automatically connect to the broker when they are eventually scheduled to run.
-In our testing, it can be up to 30s before the jobs begin running and connect to the broker. 
+On the second terminal (disc02), run
+`python3 StockMarketBroker.py <proj_name> <n_servers>`
+- This will create a broker that is looking for `<n_servers>` replicators to connect to. Make sure that the project names match for all of the servers.
 
-On the fourth terminal (condorfe), navigate to the Stock-Market-Simulator/src/condor directory.
-Once there, run the following command
-`python3 StartManyClientsCondor.py stock 10 ../../tests/test_hft.py`
-This will start 10 condor jobs to each run 1 test_hft.py client program. After a short while, they should connect to the broker and begin trading.
-Again, in our testing, it can be up to 30s before all clients are started and able to connect, so the broker might appear to be slow at first.
+On the third and fourth terminals (condorfe), run `cd condor` to navigate into the condor directory.
 
+Once there, on the third terminal, run the following command
+`python3 StartManyReplicatorsCondor.py <proj_name> <n_servers>`
+- This will start `<n_servers>` condor jobs to run 1 replicator each. They will automatically connect to the broker when they are eventually scheduled to run.
+- In our testing, it can be up to 30s before the jobs begin running and connect to the broker. 
+
+On the fourth terminal, run the following command
+`python3 StartManyClientsCondor.py <proj_name> <n_servers> <path_to_test>`
+- This will start `<n_servers>` condor jobs to each run 1 `<path_to_test>` client program. After a short while, they should connect to the broker and begin trading.
+- Again, in our testing, it can be up to 30s before all clients are started and able to connect, so the broker might appear to be slow at first.
+- `<path_to_test>` can be any of the clients mentioned in Clients, but the interactive client is not recommended.
+
+#### Crashing the Server
 Once the system is working, the broker will start outputing throughput messages indicating how much requests it is able to serve.
 One can crash any part of the system (simulator, broker, replicators, clients) and the system will eventually get back into a working state.
 If one manually crashes the condor jobs, the replicator manager/client manager program will automatically restart them for you.
