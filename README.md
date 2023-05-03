@@ -75,7 +75,7 @@ Furthermore, since we implement a pub/sub scheme that might result in temporaril
 
 ## Running Code
 
-#### Running on Student Machines:
+### Running on Student Machines:
 
 Running on the student machines is the easiest to get an overview of all the parts of the system, but the performance will be pretty bad because the number of replicators will be limited to the number of machines that exist. Running multiple replicators on the same machine is possible but doesn't result in much throughput gain. There is no specific version of python required with any sort of dependencies, just any python version 3.9 and above.
 
@@ -83,7 +83,7 @@ To run StockNet, start 4 different terminals connected to student machines. They
 
 From here, navigate to the Stock-Market-Simulator (wherever you cloned the github repository to) and `cd src` into the src directory on all four terminals.
 
-###### Single Replicator
+##### Single Replicator
 
 On terminal 1, run the following command:
 `python3 StockMarketSimulator.py <proj_name>`
