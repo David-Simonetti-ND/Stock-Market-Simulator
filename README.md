@@ -88,7 +88,7 @@ There are several test scripts that can be used as a client.
 
 ### Running on Student Machines:
 
-Running on the student machines is the easiest to get an overview of all the parts of the system, but the performance is poor because the number of replicators will be limited to the number of machines that exist. Running multiple replicators on the same machine is possible but doesn't result in much throughput gain.
+Running on the student machines is the easiest to get an overview of all the parts of the system, but the performance is poor because the number of replicators will be limited to the number of machines that exist. Running multiple replicators on the same machine is possible but doesn't result in much throughput gain. 
 
 To set up the environment, run the following commands
 ```
@@ -98,7 +98,7 @@ To set up the environment, run the following commands
 
 Ensure you have python 3.9+ installed on the student machines.
 
-To run StockNet, start 4 different terminals connected to various student machines. They can be all the same student machine or all different.
+To run StockNet, start 4 different terminals ON THE SAME STUDENT MACHINE. NOTE: In testing we noticed an issue with sending UDP packets across different student machines, where packets were all being dropped. This could be due to a variety of reasons, but for demonstration purposes it is simpler to run all servers and clients on the same machine. If you really wish to run different machines, the connections will work, but stock data may not be updated properly.
 
 #### Single Replicator (Basic)
 
