@@ -146,8 +146,9 @@ class StockMarketEndpoint:
                 self.subscribe_to_simulator()
             try:
                 self.recent_price = json.loads(self.info_sock.recv(1024))
-            except Exception:
-                print_debug("Could not get data.")
+            except Exception as e:
+                
+                print_debug("Could not get data", e)
                 pass
 
     #############
