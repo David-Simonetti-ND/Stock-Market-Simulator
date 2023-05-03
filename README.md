@@ -28,7 +28,7 @@ We three main goals for our system:
 
 ## Architecture
 
-David can you fill this in
+The following section describes the overall architecture of the system. It will begin with a description of the overall architecture followed by specifics of each component.
 
 #### Overview
 
@@ -37,11 +37,19 @@ David can you fill this in
 #### Simulator
 ![Simulator](results/img/Simulator.png)
 
+The simulation server completes the task of simulating the stock market. It uses a publish/subscribe system in order to deliver price information to clients with a specified delay, which can be seen in the bottom half of the picture. It also has a direct connection to the broker to provide it with updated stock information, which is shown in the top half of the picture.
+
 #### Broker/Load Balancer
 ![Broker](results/img/Broker.png)
 
+The broker is connected to all clients and all replicators in the system. It receives incoming client requests, forwards it to a replication server via a hashing algorithm, and then asynchronously completes the given request for that client. 
+
 #### Replicator/Replication Manager
 ![Replication](results/img/Replication.png)
+
+The replicator is a server that is used by the broker to handle a portion of client requests and information. For example, if there are 10 replicators in the system, then each replicator will store and perform requests for 1/10 of all clients. The replicator uses a transaction and check pointing system that allows itself to recover from a crash. Client requests are asynchronously forwarded from the broker on to the replicator in order to be completed, and then returned to the client through the broker once they are finished.
+
+The replicator manager interfaces with condor in order to create a reliable system for starting and maintaining many replicators. The replicator manager will start a number of replicator jobs at the beginning of the simulation run, and will monitor the replicators from then on. If a replicator were to crash, the manager will restart that replicator job with the exact state of its checkpoint and transaction log, allowing it to continue without losing any consistency.
 
 
 
