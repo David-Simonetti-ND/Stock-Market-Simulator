@@ -28,6 +28,7 @@ def main():
     
     # wait for first data to come in.
     while sm.get_stock_update()['time'] == 0:
+        print(sm.get_stock_update())
         pass
     
     while True:
