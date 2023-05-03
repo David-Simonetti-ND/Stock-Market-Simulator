@@ -34,6 +34,8 @@ The following section describes the overall architecture of the system. It will 
 
 ![Overview](results/img/Overview.png)
 
+This is an overview of the entire system. Some key items to note are the clients on the bottom, the simulator in the top left, the broker in the top middle, the replicator manager in the bottom right, and the replicators running on a condor cluster in the top right.
+
 #### Simulator
 ![Simulator](results/img/Simulator.png)
 
