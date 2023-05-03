@@ -75,35 +75,43 @@ Furthermore, since we implement a pub/sub scheme that might result in temporaril
 
 ## Running Code
 
-(basic)
-Running on the student machines:
+#### Running on Student Machines:
+
 Running on the student machines is the easiest to get an overview of all the parts of the system, but the performance will be pretty bad because the number of replicators will be limited to the number of machines that exist. Running multiple replicators on the same machine is possible but doesn't result in much throughput gain. There is no specific version of python required with any sort of dependencies, just any python version 3.9 and above.
 
 To run StockNet, start 4 different terminals connected to student machines. They can be all the same student machine or all different.
 
-From here, navigate to the Stock-Market-Simulator (wherever you cloned the github repository to) and cd into the src directory on all four terminals.
+From here, navigate to the Stock-Market-Simulator (wherever you cloned the github repository to) and `cd src` into the src directory on all four terminals.
 
-On terminal 1, run the following command
-`python3 StockMarketSimulator.py stock`
+###### Single Replicator
+
+On terminal 1, run the following command:
+`python3 StockMarketSimulator.py <proj_name>`
 This will start the simulator on project name "stock". You can change the project name by changing the argument to the simulator.
 
-On terminal 2, run the following command
-`python3 StockMarketBroker.py stock 1`
+On terminal 2, run the following command:
+`python3 StockMarketBroker.py <proj_name> 1`
 This will create a broker on project name "stock" that is looking for 1 replicator to connect to. Make sure that the project names match for all of the servers.
 
-On terminal 3, run the following command
-`python3 Replicator.py stock 0`
+On terminal 3, run the following command:
+`python3 Replicator.py <proj_name> 0`
 This will create a replicator with an id of 0. Because the broker is only looking for 1 replicator, it will search for one with id 0 which is the replicator running on terminal 3.
 
-On terminal 4 run the following command
-`python3 ../tests/test_random.py stock test_name`
+On terminal 4 run the following command:
+`python3 ../tests/test_random.py <proj_name> <client_name>`
 This will create a client with the name test_name and it will connect to the broker and begin making trades.
 
+
 To play around with this further, there are a variety of options to change.
+
 On terminal 3, one can instead run 
-`python3 StartManyReplicators.py stock 10`
-This will start 10 replicators all running on the same machine. Make sure to then restart the broker with an argument of 10 on the command line.
-This will change the system so that now 10 replicators are connected to the broker and sharing the load of client information. Now of course they are all on the same machine so the throughput increase will be minimal. 
+`python3 StartManyReplicators.py <proj_name> <n_servers>`
+This will start `n_servers` replicators all running on the same machine. Make sure to then restart the broker with an argument of 10 on the command line.
+On terminal 2, the broker must be restarted using the same number of servers:
+`python3 StockMarketBroker.py <proj_name> <n_servers>`
+
+This will change the system so that now `<n_servers>` replicators are connected to the broker and sharing the load of client information. Now of course, they are all on the same machine so the throughput increase will be minimal. 
+
 
 In addition, one could run many replicators on many different student machines to achieve the same effect.
 For example, one could start the broker on student10 with
