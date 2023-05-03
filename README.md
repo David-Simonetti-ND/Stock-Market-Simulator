@@ -118,7 +118,7 @@ On terminal 3, run the following command:
 
 On terminal 4 run the following command:
 `python3 <path_to_test> <proj_name> <client_name>`
-`<path_to_test>` can be any of the clients mentioned in the Clients section.
+- `<path_to_test>` can be any of the clients mentioned in the Clients section.
 - This will create a client with the name `<client_name>` and it will connect to the broker.
 
 
@@ -127,9 +127,10 @@ To play around with this further, there are a variety of options to change.
 
 On terminal 3, one can instead run 
 `python3 StartManyReplicators.py <proj_name> <n_servers>`
-This will start `n_servers` replicators all running on the same machine. Make sure to then restart the broker with an argument of 10 on the command line.
+- This will start `<n_servers>` replicators all running on the same machine. Make sure to then restart the broker with an argument of 10 on the command line.
 On terminal 2, the broker must be restarted using the same number of servers:
 `python3 StockMarketBroker.py <proj_name> <n_servers>`
+- This ensures the broker is now looking for `<n_servers>`
 
 This will change the system so that now `<n_servers>` replicators are connected to the broker and sharing the load of client information. Now of course, they are all on the same machine so the throughput increase will be minimal. 
 
@@ -161,8 +162,7 @@ Clients can crash and reconnect, more clients can join, and clients can leave th
 The only caveat is that the number of replicators is fixed for the given simulation run. Once the broker has a number of replicators specified, the whole system must be stopped in order to change that number.
 
 
-(Advanced)
-Running using condor:
+### Running using Condor:
 
 To run StockNet on condor, there are a couple of initialization steps to get it working.
 First, clone this github repository somewhere in your `/scratch365/$USER/` directory.
