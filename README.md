@@ -233,4 +233,4 @@ Just ensure that the number of replicators started matches the number specified 
 The powerpoint presentation summarizing our system and evaluation can be downloaded [here](results/StockNet%20Presentation.pptx).
 
 ## Final Paper
-The final paper is located [here](None).
+The final paper is located [here](results/StockNet%20Final%20Paper.pdf).
