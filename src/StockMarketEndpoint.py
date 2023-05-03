@@ -147,6 +147,7 @@ class StockMarketEndpoint:
             try:
                 self.recent_price = json.loads(self.info_sock.recv(1024))
             except Exception:
+                print_debug("Could not get data.")
                 pass
 
     #############

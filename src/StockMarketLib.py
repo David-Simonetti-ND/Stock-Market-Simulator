@@ -23,7 +23,7 @@ MINUTE_SPEEDUP = 1
 CLIENT_DELAY = 5
 
 ## Default Timeout for subscribes
-SUBSCRIBE_TIMEOUT = 10 * (1e9)
+SUBSCRIBE_TIMEOUT = 30 * (1e9)
 
 ## DEBUG Mode
 DEBUG = True
