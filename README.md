@@ -165,14 +165,15 @@ The only caveat is that the number of replicators is fixed for the given simulat
 
 To run StockNet on condor, there are a couple of initialization steps to get it working.
 
-First, make sure you have access to a `scratch365` account
+First, make sure you have access to a `scratch365` account and miniconda or conda installed on your account.
 
 Then, to set up the environment, run the following commands
 ```
 1. cd /scratch365/$USER/
 2. git clone https://github.com/David-Simonetti-ND/Stock-Market-Simulator.git (git@github.com:David-Simonetti-ND/Stock-Market-Simulator.git for ssh servers)
-3. cd Stock-Market-Simulator/src
+3. cd Stock-Market-Simulator
 4. conda env create --prefix /scratch365/$USER/stock_conda --file environment.yml
+5. cd src
 ```
 The conda environment is a prerequisite needed for the condor jobs to run.
 
@@ -201,10 +202,14 @@ Once there, on the third terminal, run the following command
 - In our testing, it can be up to 30s before the jobs begin running and connect to the broker. 
 
 On the fourth terminal, run the following command
-`python3 StartManyClientsCondor.py <proj_name> <n_servers> <path_to_test>`
+`python3 StartManyClientsCondor.py <proj_name> <n_servers> ../<path_to_test>`
 - This will start `<n_servers>` condor jobs to each run 1 `<path_to_test>` client program. After a short while, they should connect to the broker and begin trading.
 - Again, in our testing, it can be up to 30s before all clients are started and able to connect, so the broker might appear to be slow at first.
-- `<path_to_test>` can be any of the clients mentioned in Clients, but the interactive client is not recommended.
+- `<path_to_test>` can be any of the clients mentioned in Clients, but the interactive client is not recommended. We recommend the random player.
+
+Alternatively, you can also stay in the src directory and run
+`python3 <path_to_test> <proj_name> <client_name>`
+- This runs any of the tests on the current machine, which is useful for running the interactive client.
 
 #### Crashing the Server
 Once the system is working, the broker will start outputing throughput messages indicating how much requests it is able to serve.
