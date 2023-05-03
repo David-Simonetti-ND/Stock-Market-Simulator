@@ -26,8 +26,8 @@ CLIENT_DELAY = 5
 SUBSCRIBE_TIMEOUT = 10 * (1e9)
 
 ## DEBUG Mode
-# DEBUG = True
-DEBUG = False
+DEBUG = True
+# DEBUG = False
 
 ##############
 # User Class #

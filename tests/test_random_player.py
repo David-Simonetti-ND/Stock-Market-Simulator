@@ -50,7 +50,7 @@ def main():
                     sm.register(registered_ok=True)
         
         if c % 10 == 0:
-            print(sm.get_balance(), sm.username)
+            print(sm.get_balance()['Str'])
         if c % 60 == 0:
             print(sm.get_leaderboard())
             

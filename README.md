@@ -78,12 +78,12 @@ Furthermore, since we implement a pub/sub scheme that might result in temporaril
 ### Clients
 
 There are several test scripts that can be used as a client.
-1. `../../tests/test_hft.py` - a high-frequency trader that sends buy/sell requests as fast as possible (no stdout)
-2. `../../tests/test_lft.py` - a low-frequency trader that sends buy/sell requests every 1 second (no stdout)
-3. `../../tests/test_random_player.py` - a random LFT trader that randomly sends buy/sell requests of 1-15 stocks.
-4. `../../tests/test_john_player.py` - a LFT trader that implements John's custom strategy
-5. `../../tests/test_david_player.py` - a LFT trader that implements David's custom strategy
-6. `../../tests/test_interactive.py` - an interactive trader for demonstration purposes
+1. `../tests/test_hft.py` - a high-frequency trader that sends buy/sell requests as fast as possible (no stdout)
+2. `../tests/test_lft.py` - a low-frequency trader that sends buy/sell requests every 1 second (no stdout)
+3. `../tests/test_random_player.py` - a random LFT trader that randomly sends buy/sell requests of 1-15 stocks.
+4. `../tests/test_john_player.py` - a LFT trader that implements John's custom strategy
+5. `../tests/test_david_player.py` - a LFT trader that implements David's custom strategy
+6. `../tests/test_interactive.py` - an interactive trader for demonstration purposes
 
 
 ### Running on Student Machines:
